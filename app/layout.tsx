@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -16,17 +16,18 @@ export const metadata: Metadata = {
   title: "Navi",
   description: "Navi - あなたのナビゲーションアプリ",
   manifest: "/manifest.json",
-  themeColor: "#0ea5e9",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Navi",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0ea5e9",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
