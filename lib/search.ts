@@ -1,23 +1,15 @@
 import type { Product, SearchParams, SearchResult, SortOrder } from "@/types/product";
 
-type ApiResult = {
-  products: Product[];
-  totalCount: number;
-  source: string;
-  error?: string;
-};
+// ── 内部ユーティリティ ────────────────────────────────────────
 
 function sortProducts(products: Product[], sort: SortOrder): Product[] {
   return [...products].sort((a, b) => {
     switch (sort) {
-      case "price_asc":
-        return a.price - b.price;
-      case "price_desc":
-        return b.price - a.price;
+      case "price_asc":  return a.price - b.price;
+      case "price_desc": return b.price - a.price;
       case "rating_desc":
         return b.rating - a.rating || b.reviewCount - a.reviewCount;
-      default:
-        return 0;
+      default: return 0;
     }
   });
 }
@@ -25,7 +17,6 @@ function sortProducts(products: Product[], sort: SortOrder): Product[] {
 function deduplicateByName(products: Product[]): Product[] {
   const seen = new Set<string>();
   return products.filter((p) => {
-    // 商品名の先頭40文字をキーに重複排除
     const key = p.name.slice(0, 40).toLowerCase().replace(/\s+/g, "");
     if (seen.has(key)) return false;
     seen.add(key);
@@ -33,54 +24,135 @@ function deduplicateByName(products: Product[]): Product[] {
   });
 }
 
-// ベースURLを環境に応じて解決（サーバーサイド呼び出し時に絶対URLが必要）
-function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
-    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+// ── 楽天API直接呼び出し ──────────────────────────────────────
+
+async function fetchRakuten(query: string, page: number, perPage: number): Promise<Product[]> {
+  const appId = process.env.RAKUTEN_APP_ID;
+  const accessKey = process.env.RAKUTEN_ACCESS_KEY;
+  if (!appId || !accessKey) {
+    console.warn("[search] 楽天キー未設定");
+    return [];
   }
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://navi-tawny.vercel.app";
+  const url = new URL("https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401");
+  url.searchParams.set("applicationId", appId);
+  url.searchParams.set("keyword", query);
+  url.searchParams.set("hits", String(Math.min(perPage, 30)));
+  url.searchParams.set("page", String(page));
+  url.searchParams.set("sort", "+itemPrice");
+  url.searchParams.set("availability", "1");
+  url.searchParams.set("imageFlag", "1");
+  url.searchParams.set("formatVersion", "2");
+
+  const res = await fetch(url.toString(), {
+    headers: { accessKey, Referer: appUrl, Origin: appUrl, "User-Agent": "Navi/1.0" },
+    next: { revalidate: 60 },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`楽天API ${res.status}: ${body?.errors?.errorMessage ?? res.statusText}`);
   }
-  return "http://localhost:3000";
+
+  const data = await res.json();
+  return (data.Items ?? []).map((raw: Record<string, unknown>) => {
+    const item = ("Item" in raw ? raw.Item : raw) as Record<string, unknown>;
+    const caption = String(item.itemCaption ?? "");
+    const features = caption
+      .split(/[。\n・]/).map((s: string) => s.trim())
+      .filter((s: string) => s.length > 4 && s.length < 60).slice(0, 5);
+    return {
+      id: `rakuten_${item.itemCode}`,
+      source: "rakuten" as const,
+      name: String(item.itemName ?? ""),
+      price: Number(item.itemPrice ?? 0),
+      image: (item.mediumImageUrls as { imageUrl: string }[])?.[0]?.imageUrl ?? "",
+      affiliateUrl: String(item.affiliateUrl || item.itemUrl || ""),
+      rating: Number(item.reviewAverage ?? 0),
+      reviewCount: Number(item.reviewCount ?? 0),
+      features,
+      category: String(item.genreName ?? ""),
+      availability: item.availability === 1,
+    } satisfies Product;
+  });
 }
+
+// ── Yahoo!ショッピングAPI直接呼び出し ──────────────────────────
+
+async function fetchYahoo(query: string, page: number, perPage: number): Promise<Product[]> {
+  const clientId = process.env.YAHOO_CLIENT_ID;
+  if (!clientId) {
+    console.warn("[search] Yahoo!キー未設定");
+    return [];
+  }
+
+  const url = new URL("https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch");
+  url.searchParams.set("appid", clientId);
+  url.searchParams.set("query", query);
+  url.searchParams.set("results", String(Math.min(perPage, 50)));
+  url.searchParams.set("start", String((page - 1) * perPage + 1));
+  url.searchParams.set("in_stock", "true");
+  url.searchParams.set("sort", "+price");
+
+  const res = await fetch(url.toString(), { next: { revalidate: 60 } });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Yahoo!API ${res.status}: ${body.slice(0, 100)}`);
+  }
+
+  const data = await res.json();
+  return (data.hits ?? []).map((hit: Record<string, unknown>) => {
+    const desc = String(hit.description ?? "");
+    const features = desc
+      .split(/[。\n・、]/).map((s: string) => s.trim())
+      .filter((s: string) => s.length > 4 && s.length < 60).slice(0, 5);
+    const review = hit.review as Record<string, number> | undefined;
+    const image = hit.image as Record<string, string> | undefined;
+    const priceLabel = hit.priceLabel as Record<string, number> | undefined;
+    const genreCategory = hit.genreCategory as Record<string, string> | undefined;
+    return {
+      id: `yahoo_${hit.code}`,
+      source: "yahoo" as const,
+      name: String(hit.name ?? ""),
+      price: Number(priceLabel?.taxIncluded ?? hit.price ?? 0),
+      image: image?.medium ?? "",
+      affiliateUrl: String(hit.url ?? ""),
+      rating: Number(review?.rate ?? 0),
+      reviewCount: Number(review?.count ?? 0),
+      features,
+      category: genreCategory?.name ?? "",
+      availability: hit.inStock !== false,
+    } satisfies Product;
+  });
+}
+
+// ── 統合検索エントリーポイント ────────────────────────────────
 
 export async function searchProducts(params: SearchParams): Promise<SearchResult> {
   const { query, sort = "price_asc", page = 1, perPage = 20 } = params;
-  const base = getBaseUrl();
-  const qs = `q=${encodeURIComponent(query)}&page=${page}&perPage=${perPage}`;
 
-  // 楽天・Yahoo! を並列で叩く
   const [rakutenResult, yahooResult] = await Promise.allSettled([
-    fetch(`${base}/api/rakuten?${qs}`).then((r) => r.json() as Promise<ApiResult>),
-    fetch(`${base}/api/yahoo?${qs}`).then((r) => r.json() as Promise<ApiResult>),
+    fetchRakuten(query, page, perPage),
+    fetchYahoo(query, page, perPage),
   ]);
 
   const allProducts: Product[] = [];
-  const sources: string[] = [];
-  let totalCount = 0;
+  const sources: ProductSource[] = [];
 
-  if (rakutenResult.status === "fulfilled" && !rakutenResult.value.error) {
-    allProducts.push(...(rakutenResult.value.products ?? []));
-    totalCount += rakutenResult.value.totalCount ?? 0;
-    sources.push("rakuten");
+  if (rakutenResult.status === "fulfilled") {
+    allProducts.push(...rakutenResult.value);
+    if (rakutenResult.value.length > 0) sources.push("rakuten");
   } else {
-    const reason =
-      rakutenResult.status === "rejected"
-        ? rakutenResult.reason
-        : rakutenResult.value.error;
-    console.warn("[search] 楽天APIスキップ:", reason);
+    console.warn("[search] 楽天スキップ:", rakutenResult.reason);
   }
 
-  if (yahooResult.status === "fulfilled" && !yahooResult.value.error) {
-    allProducts.push(...(yahooResult.value.products ?? []));
-    totalCount += yahooResult.value.totalCount ?? 0;
-    sources.push("yahoo");
+  if (yahooResult.status === "fulfilled") {
+    allProducts.push(...yahooResult.value);
+    if (yahooResult.value.length > 0) sources.push("yahoo");
   } else {
-    const reason =
-      yahooResult.status === "rejected"
-        ? yahooResult.reason
-        : yahooResult.value.error;
-    console.warn("[search] Yahoo!APIスキップ:", reason);
+    console.warn("[search] Yahoo!スキップ:", yahooResult.reason);
   }
 
   const unique = deduplicateByName(allProducts);
@@ -88,7 +160,9 @@ export async function searchProducts(params: SearchParams): Promise<SearchResult
 
   return {
     products: sorted,
-    totalCount,
-    sources: sources as SearchResult["sources"],
+    totalCount: unique.length,
+    sources,
   };
 }
+
+type ProductSource = "rakuten" | "yahoo" | "amazon";
