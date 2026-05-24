@@ -35,10 +35,17 @@ export const INTENT_EXTRACTION_PROMPT = (userMessage: string) => `
 
 ユーザーメッセージ：「${userMessage}」
 
+重要：
+- keyword は商品そのものを指す具体的なキーワードにしてください
+  例：「イヤホン」→「ワイヤレスイヤホン」、「掃除機」→「ロボット掃除機」
+- minPrice は商品カテゴリの最低合理的価格を設定してください
+  例：イヤホン→500、ロボット掃除機→5000、スマホ→10000
+
 返すJSONの形式：
 {
-  "keyword": "検索キーワード（日本語）",
+  "keyword": "検索キーワード（具体的な商品名・日本語）",
   "maxPrice": 数値またはnull,
+  "minPrice": 数値またはnull,
   "minRating": 数値またはnull,
   "features": ["こだわり条件1", "こだわり条件2"],
   "category": "カテゴリ名"

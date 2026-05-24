@@ -20,6 +20,7 @@ const anthropic = new Anthropic({
 type Intent = {
   keyword: string;
   maxPrice: number | null;
+  minPrice: number | null;
   minRating: number | null;
   features: string[];
   category: string;
@@ -57,6 +58,7 @@ async function askClaude<T>(prompt: string): Promise<T> {
 function filterProducts(products: Product[], intent: Intent): Product[] {
   return products.filter((p) => {
     if (intent.maxPrice && p.price > intent.maxPrice) return false;
+    if (intent.minPrice && p.price < intent.minPrice) return false;
     if (intent.minRating && p.rating < intent.minRating) return false;
     return true;
   });

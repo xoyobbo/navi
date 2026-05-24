@@ -26,7 +26,7 @@ function deduplicateByName(products: Product[]): Product[] {
 
 // ── 楽天API直接呼び出し ──────────────────────────────────────
 
-async function fetchRakuten(query: string, page: number, perPage: number): Promise<Product[]> {
+async function fetchRakuten(query: string, page: number, perPage: number, sort: SortOrder = "price_asc"): Promise<Product[]> {
   const appId = process.env.RAKUTEN_APP_ID;
   const accessKey = process.env.RAKUTEN_ACCESS_KEY;
   if (!appId || !accessKey) {
@@ -40,7 +40,8 @@ async function fetchRakuten(query: string, page: number, perPage: number): Promi
   url.searchParams.set("keyword", query);
   url.searchParams.set("hits", String(Math.min(perPage, 30)));
   url.searchParams.set("page", String(page));
-  url.searchParams.set("sort", "+itemPrice");
+  // 評価順の場合は楽天の reviewCount 降順で取得（評価数が多い＝信頼度高い商品を優先）
+  url.searchParams.set("sort", sort === "rating_desc" ? "-reviewCount" : "+itemPrice");
   url.searchParams.set("availability", "1");
   url.searchParams.set("imageFlag", "1");
   url.searchParams.set("formatVersion", "2");
@@ -80,7 +81,7 @@ async function fetchRakuten(query: string, page: number, perPage: number): Promi
 
 // ── Yahoo!ショッピングAPI直接呼び出し ──────────────────────────
 
-async function fetchYahoo(query: string, page: number, perPage: number): Promise<Product[]> {
+async function fetchYahoo(query: string, page: number, perPage: number, sort: SortOrder = "price_asc"): Promise<Product[]> {
   const clientId = process.env.YAHOO_CLIENT_ID;
   if (!clientId) {
     console.warn("[search] Yahoo!キー未設定");
@@ -93,7 +94,9 @@ async function fetchYahoo(query: string, page: number, perPage: number): Promise
   url.searchParams.set("results", String(Math.min(perPage, 50)));
   url.searchParams.set("start", String((page - 1) * perPage + 1));
   url.searchParams.set("in_stock", "true");
-  url.searchParams.set("sort", "+price");
+  // rating_desc → Yahoo!の評価平均降順、price_desc → 価格降順、それ以外 → 価格昇順
+  const yahooSort = sort === "rating_desc" ? "-review_average" : sort === "price_desc" ? "-price" : "+price";
+  url.searchParams.set("sort", yahooSort);
 
   const res = await fetch(url.toString(), { next: { revalidate: 60 } });
 
@@ -134,8 +137,8 @@ export async function searchProducts(params: SearchParams): Promise<SearchResult
   const { query, sort = "price_asc", page = 1, perPage = 20 } = params;
 
   const [rakutenResult, yahooResult] = await Promise.allSettled([
-    fetchRakuten(query, page, perPage),
-    fetchYahoo(query, page, perPage),
+    fetchRakuten(query, page, perPage, sort),
+    fetchYahoo(query, page, perPage, sort),
   ]);
 
   const allProducts: Product[] = [];

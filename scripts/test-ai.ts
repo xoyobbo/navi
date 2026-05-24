@@ -1,7 +1,6 @@
 /**
  * AI推薦エンジン 動作確認スクリプト
  * 使い方: npx tsx scripts/test-ai.ts
- * ※ ANTHROPIC_API_KEY を .env.local に設定してから実行
  */
 
 import { config } from "dotenv";
@@ -37,31 +36,41 @@ async function main() {
   // ① 意図解析
   console.log("── ① 意図解析 ──────────────────");
   const intent = await askClaude<{
-    keyword: string; maxPrice: number | null; minRating: number | null;
-    features: string[]; category: string;
+    keyword: string; maxPrice: number | null; minPrice: number | null;
+    minRating: number | null; features: string[]; category: string;
   }>(INTENT_EXTRACTION_PROMPT(testMessage));
   console.log(JSON.stringify(intent, null, 2));
 
   // ② 商品検索
   console.log("\n── ② 商品検索 ──────────────────");
-  const result = await searchProducts({ query: intent.keyword, sort: "rating_desc", perPage: 20 });
-  const filtered = intent.maxPrice
-    ? result.products.filter((p) => p.price <= intent.maxPrice!)
-    : result.products;
-  console.log(`楽天+Yahoo! から ${filtered.length}件（価格フィルタ後）`);
+  const result = await searchProducts({
+    query: intent.keyword,
+    sort: intent.minRating ? "rating_desc" : "price_asc",
+    perPage: 30,
+  });
+  const filtered = result.products.filter((p) => {
+    if (intent.maxPrice && p.price > intent.maxPrice) return false;
+    if (intent.minPrice && p.price < intent.minPrice) return false;
+    if (intent.minRating && p.rating < intent.minRating) return false;
+    return true;
+  });
+  console.log(`${result.products.length}件取得 → フィルタ後 ${filtered.length}件`);
+  console.log("上位3件:", filtered.slice(0, 3).map(p => `¥${p.price} ${p.name.slice(0,30)}`));
 
   // ③ 商品選定
   console.log("\n── ③ AI商品選定 ─────────────────");
-  const productText = filtered
+  const candidates = filtered.length >= 5 ? filtered : result.products;
+  const productText = candidates
     .slice(0, 20)
-    .map((p) => `id:${p.id} | ${p.name.slice(0, 40)} | ¥${p.price.toLocaleString()} | 評価:${p.rating}(${p.reviewCount}件)`)
+    .map((p) => `id:${p.id} | ${p.name.slice(0, 40)} | ¥${p.price.toLocaleString()} | 評価:${p.rating}(${p.reviewCount}件) | ${p.source}`)
     .join("\n");
 
   const selections = await askClaude<{ productId: string; reason: string }[]>(
     PRODUCT_SELECTION_PROMPT(testMessage, productText)
   );
+  console.log(`Claude が ${selections.length}件を選定`);
 
-  const productMap = new Map(filtered.map((p) => [p.id, p]));
+  const productMap = new Map(candidates.map((p) => [p.id, p]));
   const recommended = selections
     .filter((s) => productMap.has(s.productId))
     .map((s) => ({ ...productMap.get(s.productId)!, reason: s.reason }))
@@ -70,7 +79,7 @@ async function main() {
   // ④ 結果表示
   console.log(`\n── ④ 推薦結果（${recommended.length}件）────────`);
   recommended.forEach((p, i) => {
-    console.log(`\n[${i + 1}] ${p.name.slice(0, 45)}`);
+    console.log(`\n[${i + 1}] ${p.name.slice(0, 50)}`);
     console.log(`    ¥${p.price.toLocaleString()} | 評価:${p.rating}(${p.reviewCount}件) | ${p.source}`);
     console.log(`    💡 ${p.reason}`);
   });
