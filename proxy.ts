@@ -3,6 +3,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
+  "/sign-up(.*)",
   "/api/rakuten(.*)",
   "/api/yahoo(.*)",
   "/api/search(.*)",
@@ -10,6 +11,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/price-check",    // Cron Job — CRON_SECRET で独自認証
   "/api/actions",        // 未認証は route 内で無視
   "/api/preferences",    // 未認証は null を返す
+  "/api/push(.*)",       // Web Push（認証不要）
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
