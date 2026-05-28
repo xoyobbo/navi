@@ -493,6 +493,21 @@ export default function ProductDetailPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-center text-base font-bold text-white bg-[#BF0000] hover:bg-[#a00000] transition rounded-2xl py-4 shadow-sm"
+                onClick={() => {
+                  fetch("/api/track", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      actionType: "purchase_click",
+                      productId: product.id,
+                      productName: product.name,
+                      productCategory: product.category,
+                      productPrice: product.price,
+                      source: "rakuten",
+                    }),
+                  }).catch(() => {});
+                  fetch("/api/profile/update", { method: "POST" }).catch(() => {});
+                }}
               >
                 楽天市場で購入する →
               </a>
@@ -503,6 +518,21 @@ export default function ProductDetailPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-center text-base font-bold text-white bg-[#FF0033] hover:bg-[#d40029] transition rounded-2xl py-4 shadow-sm"
+                onClick={() => {
+                  fetch("/api/track", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      actionType: "purchase_click",
+                      productId: product.id,
+                      productName: product.name,
+                      productCategory: product.category,
+                      productPrice: product.price,
+                      source: "yahoo",
+                    }),
+                  }).catch(() => {});
+                  fetch("/api/profile/update", { method: "POST" }).catch(() => {});
+                }}
               >
                 Yahoo!ショッピングで購入する →
               </a>
@@ -513,6 +543,21 @@ export default function ProductDetailPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`block text-center text-base font-bold text-white ${badge.btnColor} transition rounded-2xl py-4 shadow-sm`}
+                onClick={() => {
+                  fetch("/api/track", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      actionType: "purchase_click",
+                      productId: product.id,
+                      productName: product.name,
+                      productCategory: product.category,
+                      productPrice: product.price,
+                      source: product.source,
+                    }),
+                  }).catch(() => {});
+                  fetch("/api/profile/update", { method: "POST" }).catch(() => {});
+                }}
               >
                 {badge.label}で購入する →
               </a>

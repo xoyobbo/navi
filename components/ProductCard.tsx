@@ -45,7 +45,6 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
   const [fav, setFav] = useState(isFavorited);
   const [alertOpen, setAlertOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
-  const [feedback, setFeedback] = useState<"good" | "not_for_me" | null>(null);
   const prevImageRef = useRef(product.image);
   if (prevImageRef.current !== product.image) {
     prevImageRef.current = product.image;
@@ -60,19 +59,23 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
     const next = !fav;
     setFav(next);
     onFavorite?.(product, next);
-    if (next) trackAction("favorite");
-    fetch("/api/favorites", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        product_id: product.id,
-        product_name: product.name,
-        product_price: product.price,
-        product_image: product.image,
-        product_url: product.affiliateUrl,
-        source: product.source,
-      }),
-    }).catch(() => {});
+    if (next) {
+      trackAction("favorite");
+      fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: product.id,
+          product_name: product.name,
+          product_price: product.price,
+          product_image: product.image,
+          product_url: product.affiliateUrl,
+          source: product.source,
+        }),
+      }).catch(() => {});
+      // お気に入り登録のたびにプロファイル更新をトリガー（サーバー側で10回に1回処理）
+      fetch("/api/profile/update", { method: "POST" }).catch(() => {});
+    }
   }
 
   function trackAction(actionType: "click" | "favorite" | "purchase_click") {
@@ -226,64 +229,6 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
           >
             詳細を見る
           </button>
-
-          {/* フィードバックボタン */}
-          <div className="flex gap-1.5">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const next = feedback === "good" ? null : "good";
-                setFeedback(next);
-                if (next) {
-                  fetch("/api/feedback", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      productId: product.id,
-                      productName: product.name,
-                      productPrice: product.price,
-                      productCategory: product.category,
-                      feedbackType: "good",
-                    }),
-                  }).catch(() => {});
-                }
-              }}
-              className={`flex-1 py-1 text-xs rounded-lg border transition ${
-                feedback === "good"
-                  ? "bg-green-50 border-green-200 text-green-600"
-                  : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-              }`}
-            >
-              👍 ぴったり
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const next = feedback === "not_for_me" ? null : "not_for_me";
-                setFeedback(next);
-                if (next) {
-                  fetch("/api/feedback", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      productId: product.id,
-                      productName: product.name,
-                      productPrice: product.price,
-                      productCategory: product.category,
-                      feedbackType: "not_for_me",
-                    }),
-                  }).catch(() => {});
-                }
-              }}
-              className={`flex-1 py-1 text-xs rounded-lg border transition ${
-                feedback === "not_for_me"
-                  ? "bg-red-50 border-red-200 text-red-500"
-                  : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-              }`}
-            >
-              👎 違う
-            </button>
-          </div>
 
           {onCompare && (
             <button
