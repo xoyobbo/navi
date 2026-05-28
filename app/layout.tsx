@@ -10,8 +10,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Navi",
-  description: "Navi - あなたのナビゲーションアプリ",
+  title: "Navi - AIショッピングアシスタント",
+  description: "友達のように最適な商品を選んでくれるAIアシスタント",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0ea5e9",
+  themeColor: "#1a1a1a",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -33,7 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider localization={jaJP}>
+    <ClerkProvider
+      localization={jaJP}
+      signInFallbackRedirectUrl="/chat"
+      signUpFallbackRedirectUrl="/chat"
+    >
       <html lang="ja" className={`${geistSans.variable} h-full antialiased`}>
         <body className="min-h-full flex flex-col bg-white">{children}</body>
       </html>

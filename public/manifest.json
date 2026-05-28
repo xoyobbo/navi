@@ -1,24 +1,24 @@
 {
-  "name": "Navi",
+  "name": "Navi - AIショッピングアシスタント",
   "short_name": "Navi",
-  "description": "Navi - あなたのナビゲーションアプリ",
-  "start_url": "/",
+  "description": "友達のように最適な商品を選んでくれるAIアシスタント",
+  "start_url": "/home",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#0ea5e9",
+  "theme_color": "#1a1a1a",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     }
   ]
 }

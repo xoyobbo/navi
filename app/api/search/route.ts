@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
   const sort = (searchParams.get("sort") ?? "price_asc") as SortOrder;
   const page = Number(searchParams.get("page") ?? 1);
   const perPage = Number(searchParams.get("perPage") ?? 20);
+  const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined;
+  const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined;
 
-  const result = await searchProducts({ query, sort, page, perPage });
+  const result = await searchProducts({ query, sort, page, perPage, minPrice, maxPrice });
   return NextResponse.json(result);
 }

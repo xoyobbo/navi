@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   session_id  uuid REFERENCES chat_sessions(id) ON DELETE CASCADE,
   role        text NOT NULL CHECK (role IN ('user', 'assistant')),
   content     text,
+  products    jsonb DEFAULT '[]'::jsonb,
   created_at  timestamp DEFAULT now()
 );
 

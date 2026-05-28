@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Product } from "@/types/product";
+import { normalizeKeyword } from "@/lib/search-utils";
 
-// 楽天市場商品検索API v20260401 レスポンス型
 type RakutenItem = {
   itemCode: string;
   itemName: string;
   itemPrice: number;
   mediumImageUrls: { imageUrl: string }[];
+  largeImageUrls?: { imageUrl: string }[];
   affiliateUrl: string;
   itemUrl: string;
   reviewAverage: number;
   reviewCount: number;
   itemCaption: string;
-  genreName: string;
+  genreId: string;
   availability: number;
 };
 
@@ -22,40 +23,63 @@ type RakutenResponse = {
   errors?: { errorCode: number; errorMessage: string };
 };
 
+function toHighResUrl(url: string): string {
+  return url.replace(/_ex=\d+x\d+/, "_ex=500x500");
+}
+
 function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
   const item: RakutenItem = "Item" in raw ? raw.Item : raw;
+
+  const largeImages = (item.largeImageUrls ?? [])
+    .map((img) => toHighResUrl(img.imageUrl))
+    .filter(Boolean);
+
+  const mediumImages = (item.mediumImageUrls ?? [])
+    .map((img) => toHighResUrl(img.imageUrl))
+    .filter(Boolean);
+
+  // 重複除去
+  const allImages = [...largeImages, ...mediumImages].filter(
+    (url, index, self) => self.indexOf(url) === index
+  );
+
+  const baseImage = allImages[0] ?? "/images/no-image.png";
+
+  // 5枚未満の場合は先頭画像で埋める
+  const images =
+    allImages.length >= 5
+      ? allImages.slice(0, 8)
+      : allImages.length > 0
+      ? [...allImages, ...Array(5 - allImages.length).fill(baseImage)]
+      : Array(5).fill(baseImage);
+
+  const image = images[0];
+
   const features = (item.itemCaption ?? "")
     .split(/[。\n・]/)
     .map((s) => s.trim())
     .filter((s) => s.length > 4 && s.length < 60)
     .slice(0, 5);
 
+  const affiliateUrl = item.affiliateUrl || item.itemUrl;
   return {
     id: `rakuten_${item.itemCode}`,
     source: "rakuten",
     name: item.itemName,
     price: item.itemPrice,
-    image: item.mediumImageUrls?.[0]?.imageUrl ?? "",
-    affiliateUrl: item.affiliateUrl || item.itemUrl,
+    image,
+    images,
+    affiliateUrl,
     rating: item.reviewAverage ?? 0,
     reviewCount: item.reviewCount ?? 0,
     features,
-    category: item.genreName ?? "",
+    category: String(item.genreId ?? ""),
     availability: item.availability === 1,
+    purchaseLinks: { rakuten: affiliateUrl },
   };
 }
 
-// 新APIプラットフォーム (openapi.rakuten.co.jp) 用の認証ヘッダー
-// Referer と Origin の両方が必須
-function rakutenHeaders(): Record<string, string> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://navi-tawny.vercel.app";
-  return {
-    accessKey: process.env.RAKUTEN_ACCESS_KEY!,
-    Referer: appUrl,
-    Origin: appUrl,
-    "User-Agent": "Navi/1.0",
-  };
-}
+const HITS = 30; // Rakuten API の1リクエスト最大件数
 
 export async function GET(req: NextRequest) {
   const appId = process.env.RAKUTEN_APP_ID;
@@ -73,24 +97,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "クエリパラメータ q が必要です" }, { status: 400 });
   }
 
-  const page = Number(searchParams.get("page") ?? 1);
-  const perPage = Math.min(Number(searchParams.get("perPage") ?? 20), 30);
+  const page = Math.max(1, Number(searchParams.get("page") ?? 1));
+  const minPrice = searchParams.get("minPrice");
+  const maxPrice = searchParams.get("maxPrice");
+
+  const normalizedQuery = normalizeKeyword(query);
 
   const url = new URL(
     "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401"
   );
   url.searchParams.set("applicationId", appId);
-  url.searchParams.set("keyword", query);
-  url.searchParams.set("hits", String(perPage));
+  url.searchParams.set("accessKey", accessKey);
+  url.searchParams.set("keyword", normalizedQuery);
+  url.searchParams.set("hits", String(HITS));
   url.searchParams.set("page", String(page));
-  url.searchParams.set("sort", "+itemPrice");
+  url.searchParams.set("sort", "standard");
   url.searchParams.set("availability", "1");
   url.searchParams.set("imageFlag", "1");
-  url.searchParams.set("formatVersion", "2");
+  if (minPrice) url.searchParams.set("minPrice", minPrice);
+  if (maxPrice) url.searchParams.set("maxPrice", maxPrice);
+
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   try {
     const res = await fetch(url.toString(), {
-      headers: rakutenHeaders(),
+      headers: { Origin: origin },
       next: { revalidate: 60 },
     });
 
@@ -107,12 +138,30 @@ export async function GET(req: NextRequest) {
       throw new Error(`楽天API エラー: ${data.errors.errorMessage}`);
     }
 
-    const products = (data.Items ?? []).map(toProduct);
+    const allProducts = (data.Items ?? []).map(toProduct);
+
+    // 商品名にキーワードが含まれるものだけに絞る
+    // フィルタ後に0件になる場合（英語クエリ→日本語商品名など）は元の結果を使う
+    const kw = normalizedQuery.toLowerCase();
+    const words = kw.split(/\s+/).filter(Boolean);
+    let products = allProducts;
+    if (words.length > 0) {
+      const filtered = allProducts.filter((p) => {
+        const name = p.name.toLowerCase();
+        return words.some((word) => name.includes(word));
+      });
+      if (filtered.length > 0) products = filtered;
+    }
+
+    const total = data.count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / HITS));
 
     return NextResponse.json({
       products,
-      totalCount: data.count ?? products.length,
-      source: "rakuten",
+      total,
+      page,
+      totalPages,
+      hasMore: page < totalPages,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "不明なエラー";

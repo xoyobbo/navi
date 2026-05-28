@@ -1,4 +1,7 @@
 import type { Product, SearchParams, SearchResult, SortOrder } from "@/types/product";
+import { scoreProducts } from "@/lib/scoring";
+
+type ProductSource = "rakuten" | "yahoo" | "amazon";
 
 // ── 内部ユーティリティ ────────────────────────────────────────
 
@@ -7,8 +10,12 @@ function sortProducts(products: Product[], sort: SortOrder): Product[] {
     switch (sort) {
       case "price_asc":  return a.price - b.price;
       case "price_desc": return b.price - a.price;
-      case "rating_desc":
-        return b.rating - a.rating || b.reviewCount - a.reviewCount;
+      case "rating_desc": {
+        // レビュー件数を加味した重み付きスコア (少ない件数の ★5 を過大評価しない)
+        const scoreA = a.rating * Math.log10(a.reviewCount + 10);
+        const scoreB = b.rating * Math.log10(b.reviewCount + 10);
+        return scoreB - scoreA;
+      }
       default: return 0;
     }
   });
@@ -24,9 +31,17 @@ function deduplicateByName(products: Product[]): Product[] {
   });
 }
 
+
 // ── 楽天API直接呼び出し ──────────────────────────────────────
 
-async function fetchRakuten(query: string, page: number, perPage: number, sort: SortOrder = "price_asc"): Promise<Product[]> {
+async function fetchRakuten(
+  query: string,
+  page: number,
+  perPage: number,
+  sort: SortOrder = "price_asc",
+  minPrice?: number | null,
+  maxPrice?: number | null,
+): Promise<Product[]> {
   const appId = process.env.RAKUTEN_APP_ID;
   const accessKey = process.env.RAKUTEN_ACCESS_KEY;
   if (!appId || !accessKey) {
@@ -34,20 +49,22 @@ async function fetchRakuten(query: string, page: number, perPage: number, sort: 
     return [];
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://navi-tawny.vercel.app";
+  // 新 API エンドポイント（2026-04-01〜）
   const url = new URL("https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401");
   url.searchParams.set("applicationId", appId);
+  url.searchParams.set("accessKey", accessKey);
   url.searchParams.set("keyword", query);
   url.searchParams.set("hits", String(Math.min(perPage, 30)));
   url.searchParams.set("page", String(page));
-  // 評価順の場合は楽天の reviewCount 降順で取得（評価数が多い＝信頼度高い商品を優先）
-  url.searchParams.set("sort", sort === "rating_desc" ? "-reviewCount" : "+itemPrice");
+  url.searchParams.set("sort", sort === "price_desc" ? "-itemPrice" : sort === "price_asc" ? "+itemPrice" : "standard");
   url.searchParams.set("availability", "1");
   url.searchParams.set("imageFlag", "1");
-  url.searchParams.set("formatVersion", "2");
+  if (minPrice) url.searchParams.set("minPrice", String(minPrice));
+  if (maxPrice) url.searchParams.set("maxPrice", String(maxPrice));
 
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const res = await fetch(url.toString(), {
-    headers: { accessKey, Referer: appUrl, Origin: appUrl, "User-Agent": "Navi/1.0" },
+    headers: { Origin: origin },
     next: { revalidate: 60 },
   });
 
@@ -63,25 +80,43 @@ async function fetchRakuten(query: string, page: number, perPage: number, sort: 
     const features = caption
       .split(/[。\n・]/).map((s: string) => s.trim())
       .filter((s: string) => s.length > 4 && s.length < 60).slice(0, 5);
+
+    // 新 API は largeImageUrls なし。mediumImageUrls の _ex=128x128 を高解像度に差し替える
+    const medImg = (item.mediumImageUrls as { imageUrl: string }[] | undefined)?.[0]?.imageUrl ?? "";
+    const image = medImg
+      ? medImg.replace("_ex=128x128", "_ex=500x500")
+      : "/images/no-image.png";
+
+    const itemUrl = String(item.itemUrl || "");
+    const affiliateUrl = String(item.affiliateUrl || item.itemUrl || "");
+
     return {
       id: `rakuten_${item.itemCode}`,
       source: "rakuten" as const,
       name: String(item.itemName ?? ""),
       price: Number(item.itemPrice ?? 0),
-      image: (item.mediumImageUrls as { imageUrl: string }[])?.[0]?.imageUrl ?? "",
-      affiliateUrl: String(item.affiliateUrl || item.itemUrl || ""),
+      image,
+      affiliateUrl,
       rating: Number(item.reviewAverage ?? 0),
       reviewCount: Number(item.reviewCount ?? 0),
       features,
-      category: String(item.genreName ?? ""),
+      category: String(item.genreId ?? ""),
       availability: item.availability === 1,
+      purchaseLinks: { rakuten: affiliateUrl || itemUrl },
     } satisfies Product;
   });
 }
 
 // ── Yahoo!ショッピングAPI直接呼び出し ──────────────────────────
 
-async function fetchYahoo(query: string, page: number, perPage: number, sort: SortOrder = "price_asc"): Promise<Product[]> {
+async function fetchYahoo(
+  query: string,
+  page: number,
+  perPage: number,
+  sort: SortOrder = "price_asc",
+  minPrice?: number | null,
+  maxPrice?: number | null,
+): Promise<Product[]> {
   const clientId = process.env.YAHOO_CLIENT_ID;
   if (!clientId) {
     console.warn("[search] Yahoo!キー未設定");
@@ -93,10 +128,11 @@ async function fetchYahoo(query: string, page: number, perPage: number, sort: So
   url.searchParams.set("query", query);
   url.searchParams.set("results", String(Math.min(perPage, 50)));
   url.searchParams.set("start", String((page - 1) * perPage + 1));
-  url.searchParams.set("in_stock", "true");
-  // rating_desc → Yahoo!の評価平均降順、price_desc → 価格降順、それ以外 → 価格昇順
-  const yahooSort = sort === "rating_desc" ? "-review_average" : sort === "price_desc" ? "-price" : "+price";
+  url.searchParams.set("in_stock", "1");
+  const yahooSort = sort === "rating_desc" ? "-review_average" : sort === "price_desc" ? "-price" : sort === "price_asc" ? "+price" : "-score";
   url.searchParams.set("sort", yahooSort);
+  if (minPrice) url.searchParams.set("price_from", String(minPrice));
+  if (maxPrice) url.searchParams.set("price_to", String(maxPrice));
 
   const res = await fetch(url.toString(), { next: { revalidate: 60 } });
 
@@ -106,60 +142,79 @@ async function fetchYahoo(query: string, page: number, perPage: number, sort: So
   }
 
   const data = await res.json();
-  return (data.hits ?? []).map((hit: Record<string, unknown>) => {
-    const desc = String(hit.description ?? "");
-    const features = desc
-      .split(/[。\n・、]/).map((s: string) => s.trim())
-      .filter((s: string) => s.length > 4 && s.length < 60).slice(0, 5);
-    const review = hit.review as Record<string, number> | undefined;
-    const image = hit.image as Record<string, string> | undefined;
-    const priceLabel = hit.priceLabel as Record<string, number> | undefined;
-    const genreCategory = hit.genreCategory as Record<string, string> | undefined;
-    return {
-      id: `yahoo_${hit.code}`,
-      source: "yahoo" as const,
-      name: String(hit.name ?? ""),
-      price: Number(priceLabel?.taxIncluded ?? hit.price ?? 0),
-      image: image?.medium ?? "",
-      affiliateUrl: String(hit.url ?? ""),
-      rating: Number(review?.rate ?? 0),
-      reviewCount: Number(review?.count ?? 0),
-      features,
-      category: genreCategory?.name ?? "",
-      availability: hit.inStock !== false,
-    } satisfies Product;
-  });
+
+  return (data.hits ?? [])
+    .filter((hit: Record<string, unknown>) => {
+      const img = hit.image as Record<string, string> | undefined;
+      return img?.large || img?.medium || img?.small;
+    })
+    .map((hit: Record<string, unknown>) => {
+      const desc = String(hit.description ?? "");
+      const features = desc
+        .split(/[。\n・、]/).map((s: string) => s.trim())
+        .filter((s: string) => s.length > 4 && s.length < 60).slice(0, 5);
+      const review = hit.review as Record<string, number> | undefined;
+      const image = hit.image as Record<string, string> | undefined;
+      const priceLabel = hit.priceLabel as Record<string, number> | undefined;
+      const genreCategory = hit.genreCategory as Record<string, string> | undefined;
+      const rawImage = image?.large || image?.medium || image?.small || "/images/no-image.png";
+      return {
+        id: `yahoo_${hit.code}`,
+        source: "yahoo" as const,
+        name: String(hit.name ?? ""),
+        price: Number(priceLabel?.taxIncluded ?? hit.price ?? 0),
+        image: rawImage,
+        affiliateUrl: String(hit.url ?? ""),
+        rating: Number(review?.rate ?? 0),
+        reviewCount: Number(review?.count ?? 0),
+        features,
+        category: genreCategory?.name ?? "",
+        availability: hit.inStock !== false,
+        purchaseLinks: { yahoo: String(hit.url ?? "") },
+      } satisfies Product;
+    });
 }
 
 // ── 統合検索エントリーポイント ────────────────────────────────
 
 export async function searchProducts(params: SearchParams): Promise<SearchResult> {
-  const { query, sort = "price_asc", page = 1, perPage = 20 } = params;
+  const { query, sort = "price_asc", page = 1, perPage = 20, minPrice, maxPrice } = params;
 
   const [rakutenResult, yahooResult] = await Promise.allSettled([
-    fetchRakuten(query, page, perPage, sort),
-    fetchYahoo(query, page, perPage, sort),
+    fetchRakuten(query, page, perPage, sort, minPrice, maxPrice),
+    fetchYahoo(query, page, perPage, sort, minPrice, maxPrice),
   ]);
 
-  const allProducts: Product[] = [];
+  const rakutenProducts = rakutenResult.status === "fulfilled" ? rakutenResult.value : [];
+  const yahooProducts = yahooResult.status === "fulfilled" ? yahooResult.value : [];
+
+  if (rakutenResult.status === "rejected") console.warn("[search] 楽天スキップ:", rakutenResult.reason);
+  if (yahooResult.status === "rejected") console.warn("[search] Yahoo!スキップ:", yahooResult.reason);
+
+  // 画質優先：楽天が5件以上あればYahoo!を使わない
   const sources: ProductSource[] = [];
-
-  if (rakutenResult.status === "fulfilled") {
-    allProducts.push(...rakutenResult.value);
-    if (rakutenResult.value.length > 0) sources.push("rakuten");
+  let allProducts: Product[];
+  if (rakutenProducts.length >= 5) {
+    allProducts = rakutenProducts;
+    sources.push("rakuten");
   } else {
-    console.warn("[search] 楽天スキップ:", rakutenResult.reason);
+    // 楽天が不足の場合のみYahoo!で補完
+    allProducts = [...rakutenProducts, ...yahooProducts];
+    if (rakutenProducts.length > 0) sources.push("rakuten");
+    if (yahooProducts.length > 0) sources.push("yahoo");
   }
 
-  if (yahooResult.status === "fulfilled") {
-    allProducts.push(...yahooResult.value);
-    if (yahooResult.value.length > 0) sources.push("yahoo");
-  } else {
-    console.warn("[search] Yahoo!スキップ:", yahooResult.reason);
-  }
+  // 画像なし商品を除外してから価格フィルタ
+  const withImages = allProducts.filter((p) => p.image !== "");
+  const priceFiltered = withImages.filter((p) => {
+    if (minPrice && p.price < minPrice) return false;
+    if (maxPrice && p.price > maxPrice) return false;
+    return true;
+  });
 
-  const unique = deduplicateByName(allProducts);
-  const sorted = sortProducts(unique, sort);
+  const unique = deduplicateByName(priceFiltered);
+  const scored = scoreProducts(unique);
+  const sorted = sortProducts(scored, sort);
 
   return {
     products: sorted,
@@ -167,5 +222,3 @@ export async function searchProducts(params: SearchParams): Promise<SearchResult
     sources,
   };
 }
-
-type ProductSource = "rakuten" | "yahoo" | "amazon";

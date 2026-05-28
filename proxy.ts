@@ -6,6 +6,10 @@ const isPublicRoute = createRouteMatcher([
   "/api/rakuten(.*)",
   "/api/yahoo(.*)",
   "/api/search(.*)",
+  "/api/product/by-id",  // 商品詳細フォールバック（認証不要）
+  "/api/price-check",    // Cron Job — CRON_SECRET で独自認証
+  "/api/actions",        // 未認証は route 内で無視
+  "/api/preferences",    // 未認証は null を返す
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

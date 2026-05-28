@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Product } from "@/types/product";
 
-// Yahoo!ショッピング商品検索APIのレスポンス型（必要なフィールドのみ）
+type YahooImage = {
+  small?: string;
+  medium?: string;
+  large?: string;
+  xlarge?: string;
+};
+
 type YahooHit = {
   name: string;
   code: string;
   price: number;
-  image: { medium: string };
+  image: YahooImage;
+  itemImageUrl?: string;
   url: string;
   review: { rate: number; count: number };
   description: string;
@@ -21,7 +28,14 @@ type YahooResponse = {
   totalResultsAvailable: number;
 };
 
-function toProduct(hit: YahooHit): Product {
+function toProduct(hit: YahooHit): Product | null {
+  const image =
+    hit.image?.large ||
+    hit.image?.medium ||
+    hit.image?.small ||
+    "/images/no-image.png";
+  if (!hit.image?.large && !hit.image?.medium && !hit.image?.small) return null;
+
   const desc = hit.description ?? "";
   const features = desc
     .split(/[。\n・、]/)
@@ -36,13 +50,14 @@ function toProduct(hit: YahooHit): Product {
     source: "yahoo",
     name: hit.name,
     price,
-    image: hit.image?.medium ?? "",
+    image,
     affiliateUrl: hit.url,
     rating: hit.review?.rate ?? 0,
     reviewCount: hit.review?.count ?? 0,
     features,
     category: hit.genreCategory?.name ?? "",
     availability: hit.inStock ?? true,
+    purchaseLinks: { yahoo: hit.url },
   };
 }
 
@@ -62,15 +77,20 @@ export async function GET(req: NextRequest) {
   }
 
   const page = Number(searchParams.get("page") ?? 1);
-  const perPage = Math.min(Number(searchParams.get("perPage") ?? 20), 50);
+  const perPage = Math.min(Number(searchParams.get("perPage") ?? 20), 30);
+  const minPrice = searchParams.get("minPrice");
+  const maxPrice = searchParams.get("maxPrice");
+  const sortParam = searchParams.get("sort") ?? "standard";
 
   const url = new URL("https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch");
   url.searchParams.set("appid", clientId);
   url.searchParams.set("query", query);
   url.searchParams.set("results", String(perPage));
   url.searchParams.set("start", String((page - 1) * perPage + 1));
-  url.searchParams.set("in_stock", "true");
-  url.searchParams.set("sort", "+price"); // 価格昇順
+  url.searchParams.set("in_stock", "1");
+  url.searchParams.set("sort", sortParam === "rating" ? "-review_average" : sortParam === "price" ? "+price" : "-score");
+  if (minPrice) url.searchParams.set("price_from", minPrice);
+  if (maxPrice) url.searchParams.set("price_to", maxPrice);
 
   try {
     const res = await fetch(url.toString(), {
@@ -79,12 +99,13 @@ export async function GET(req: NextRequest) {
 
     if (!res.ok) {
       const body = await res.text();
-      throw new Error(`Yahoo!API HTTP エラー: ${res.status} ${body}`);
+      console.error("[yahoo] HTTP エラー:", res.status, body.slice(0, 200));
+      return NextResponse.json({ products: [], totalCount: 0, source: "yahoo" });
     }
 
     const data: YahooResponse = await res.json();
 
-    const products = (data.hits ?? []).map(toProduct);
+    const products = (data.hits ?? []).map(toProduct).filter((p): p is Product => p !== null);
 
     return NextResponse.json({
       products,
@@ -94,6 +115,6 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "不明なエラー";
     console.error("[yahoo] 検索失敗:", message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ products: [], totalCount: 0, source: "yahoo" });
   }
 }
