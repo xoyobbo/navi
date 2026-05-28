@@ -6,7 +6,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     <>
       <UserSync />
       <TopNav />
-      <div className="pt-24 min-h-screen bg-white">
+      <div className="pt-14 min-h-screen bg-white">
         {children}
       </div>
     </>

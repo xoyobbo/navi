@@ -378,7 +378,7 @@ export default function ProductDetailPage() {
   return (
     <div className="pb-16 bg-white min-h-screen">
       {/* 戻るボタンバー */}
-      <div className="sticky top-24 z-20 bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-3">
+      <div className="sticky top-14 z-20 bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-3">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1 text-sky-500 shrink-0"

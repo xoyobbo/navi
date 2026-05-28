@@ -244,6 +244,7 @@ function TopBrowse() {
   const router = useRouter();
   const [data, setData] = useState<TopData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recentHistory, setRecentHistory] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/api/search/top")
@@ -251,6 +252,18 @@ function TopBrowse() {
       .then((d: TopData) => setData(d))
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // 検索履歴7件を取得
+    fetch("/api/history")
+      .then((r) => r.json())
+      .then((d) => {
+        const queries: string[] = (d.history ?? [])
+          .map((h: { query: string }) => h.query)
+          .filter(Boolean);
+        // 重複除去して7件
+        setRecentHistory([...new Set(queries)].slice(0, 7));
+      })
+      .catch(() => {});
   }, []);
 
   const isPersonalized       = data?.isPersonalized       ?? false;
@@ -278,7 +291,28 @@ function TopBrowse() {
         </div>
       </div>
 
-      {/* 直近5回の検索キーワード別おすすめ */}
+      {/* 最近の検索履歴 */}
+      {recentHistory.length > 0 && (
+        <div className="bg-white px-4 py-3">
+          <p className="text-xs font-semibold text-gray-400 mb-2">最近の検索</p>
+          <div className="flex flex-wrap gap-2">
+            {recentHistory.map((query) => (
+              <button
+                key={query}
+                onClick={() => router.push(`/search?q=${encodeURIComponent(query)}`)}
+                className="flex items-center gap-1 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 hover:bg-gray-100 transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3 h-3 text-gray-400 shrink-0">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {query}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 直近の検索キーワード別おすすめ */}
       {loading ? (
         <>
           {[...Array(3)].map((_, i) => (
@@ -541,7 +575,7 @@ function SearchContent() {
       {/* 検索バー（固定） */}
       <form
         onSubmit={handleSearch}
-        className="sticky top-24 z-20 bg-white border-b border-gray-100 px-4 pb-3 pt-2"
+        className="sticky top-14 z-20 bg-white border-b border-gray-100 px-4 pb-3 pt-2"
       >
         <div className="flex items-center gap-2">
           <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-2xl px-4 py-2.5">
@@ -624,7 +658,7 @@ function SearchContent() {
       {searched && (
         <div className="md:flex">
           {/* PC サイドバー */}
-          <aside className="hidden md:block w-[220px] shrink-0 bg-white border-r border-gray-100 sticky top-[148px] self-start max-h-[calc(100vh-148px)] overflow-y-auto">
+          <aside className="hidden md:block w-[220px] shrink-0 bg-white border-r border-gray-100 sticky top-[108px] self-start max-h-[calc(100vh-108px)] overflow-y-auto">
             <Sidebar {...sidebarProps} />
           </aside>
 

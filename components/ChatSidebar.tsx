@@ -157,7 +157,7 @@ export default function ChatSidebar({
             className="fixed inset-0 bg-black/30 z-20 md:hidden"
             onClick={onClose}
           />
-          <aside className="fixed left-0 top-24 bottom-0 w-[260px] z-30 md:hidden flex flex-col">
+          <aside className="fixed left-0 top-14 bottom-0 w-[260px] z-30 md:hidden flex flex-col">
             {inner}
           </aside>
         </>

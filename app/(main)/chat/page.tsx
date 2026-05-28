@@ -440,7 +440,7 @@ export default function ChatPage() {
   const name = user?.firstName ?? user?.username ?? null;
 
   return (
-    <div className="flex h-[calc(100vh-96px)]">
+    <div className="flex h-[calc(100vh-56px)]">
       {/* サイドバー */}
       <ChatSidebar
         currentSessionId={sessionId}
