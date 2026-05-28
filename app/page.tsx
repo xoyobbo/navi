@@ -1,11 +1,6 @@
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
-import Link from "next/link";
-
-export default async function RootPage() {
-  const { userId } = await auth();
-  if (userId) redirect("/chat");
-
+// Clerk に依存しない純粋な静的ランディングページ
+// ボタンは <a> タグで確実に遷移する
+export default function RootPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-white flex flex-col">
       {/* ヘッダー */}
@@ -19,12 +14,12 @@ export default async function RootPage() {
           </div>
           <span className="text-xl font-bold text-gray-900">Navi</span>
         </div>
-        <Link
+        <a
           href="/sign-in"
           className="text-sm font-medium text-sky-600 hover:text-sky-700 transition"
         >
           ログイン
-        </Link>
+        </a>
       </header>
 
       {/* メインコンテンツ */}
@@ -61,18 +56,18 @@ export default async function RootPage() {
 
         {/* CTAボタン */}
         <div className="w-full max-w-sm space-y-3">
-          <Link
+          <a
             href="/sign-in"
             className="block w-full text-center text-base font-bold text-white bg-sky-500 hover:bg-sky-600 transition rounded-2xl py-4 shadow-md"
           >
             はじめる（無料）
-          </Link>
-          <Link
+          </a>
+          <a
             href="/sign-in"
             className="block w-full text-center text-base font-medium text-gray-600 bg-white hover:bg-gray-50 transition rounded-2xl py-4 border border-gray-200 shadow-sm"
           >
             ログイン
-          </Link>
+          </a>
         </div>
       </main>
 
