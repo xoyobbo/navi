@@ -30,18 +30,15 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const displayProducts = topData?.isPersonalized && (topData.personalizedSections?.length ?? 0) > 0
-    ? topData.personalizedSections!.flatMap((s) => s.products).slice(0, 8)
-    : (topData?.popular.length ? topData.popular : topData?.products ?? []).slice(0, 8);
-
-  const sectionTitle = topData?.title ?? "✨ 人気の商品";
   const isFromHistory = topData?.isPersonalized ?? false;
-  const subMessage =
-    isFromHistory && topData?.topCategories && topData.topCategories.length > 0
-      ? `「${topData.topCategories.join("・")}」をよく検索しています`
-      : !isFromHistory && !loading
-      ? "まずは検索してみましょう！"
-      : null;
+  const displayProducts = isFromHistory && (topData?.personalizedSections?.length ?? 0) > 0
+    ? topData!.personalizedSections.flatMap((s) => s.products).slice(0, 8)
+    : [];
+
+  const sectionTitle = isFromHistory ? "✨ 最近の検索からのおすすめ" : "✨ 人気の商品";
+  const subMessage = !isFromHistory && !loading
+    ? "まずは検索してみましょう！"
+    : null;
 
   return (
     <div className="pb-10">
@@ -83,14 +80,6 @@ export default function HomePage() {
         <section>
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-base font-bold text-gray-800">{sectionTitle}</h2>
-            {isFromHistory && topData?.topCategories?.[0] && (
-              <Link
-                href={`/search?q=${encodeURIComponent(topData.topCategories[0])}`}
-                className="text-xs text-sky-500 font-medium"
-              >
-                もっと見る →
-              </Link>
-            )}
           </div>
 
           {subMessage && (
@@ -122,26 +111,6 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* 他のカテゴリへのリンク */}
-        {isFromHistory && topData?.topCategories && topData.topCategories.length > 1 && (
-          <section>
-            <h2 className="text-base font-bold text-gray-800 mb-3">🔁 他の気になるカテゴリ</h2>
-            <div className="flex flex-wrap gap-2">
-              {topData.topCategories.slice(1).map((cat) => (
-                <Link
-                  key={cat}
-                  href={`/search?q=${encodeURIComponent(cat)}`}
-                  className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-3 py-1.5 text-sm text-gray-600 hover:border-sky-300 hover:text-sky-600 transition shadow-sm"
-                >
-                  {cat}
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   );

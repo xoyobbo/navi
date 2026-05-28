@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { searchRakuten } from "@/lib/api/rakuten";
 import { deduplicateProducts } from "@/lib/api/mix";
 import { scoreProduct } from "@/lib/scoring";
@@ -8,7 +9,15 @@ import { extractSearchKeyword } from "@/lib/extract-keyword";
 import { saveSearchHistory } from "@/lib/history";
 import { createSession, saveMessage } from "@/lib/chat";
 import { getPriceRanges } from "@/lib/category-price-ranges";
+import { buildLearnedContext, updateUserProfile } from "@/lib/learning-engine";
 import type { Product } from "@/types/product";
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -106,6 +115,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 学習済みコンテキストをシステムプロンプトに追加
+    try {
+      const { userId } = await auth();
+      if (userId) {
+        const supabase = getSupabase();
+        const { data: user } = await supabase.from("users").select("id").eq("clerk_id", userId).single();
+        if (user) {
+          const learnedContext = await buildLearnedContext(user.id);
+          if (learnedContext) systemPrompt = systemPrompt + "\n\n" + learnedContext;
+        }
+      }
+    } catch {
+      // 学習コンテキスト取得失敗は無視
+    }
+
     try {
       const messages: { role: "user" | "assistant"; content: string }[] = [
         ...conversationHistory,
@@ -177,6 +201,36 @@ export async function POST(req: NextRequest) {
       .map((p) => ({ ...p, score: Math.round(scoreProduct(p, conditions)) }))
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, 30);
+
+    // 会話から学んだ内容をバックグラウンドで保存（fire-and-forget）
+    if (products.length > 0) {
+      void (async () => {
+        try {
+          const { userId } = await auth();
+          if (!userId) return;
+          const supabase = getSupabase();
+          const { data: user } = await supabase.from("users").select("id").eq("clerk_id", userId).single();
+          if (!user) return;
+          await supabase.from("conversation_insights").insert({
+            user_id: user.id,
+            keyword: originalKeyword || cleanKeyword,
+            chosen_price_range: searchConditions.maxPrice ? `〜${searchConditions.maxPrice}` : null,
+            liked_product_id: products[0]?.id ?? null,
+            liked_product_price: products[0]?.price ?? null,
+            liked_product_category: products[0]?.category ?? null,
+          });
+          const { count } = await supabase
+            .from("conversation_insights")
+            .select("id", { count: "exact" })
+            .eq("user_id", user.id);
+          if ((count ?? 0) > 0 && (count ?? 0) % 5 === 0) {
+            await updateUserProfile(user.id);
+          }
+        } catch {
+          // バックグラウンド保存の失敗は無視
+        }
+      })();
+    }
 
     return Response.json({
       products,

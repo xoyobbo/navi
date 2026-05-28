@@ -51,7 +51,22 @@ export default function MyPage() {
   const [loadingAlerts, setLoadingAlerts] = useState(true);
   const [deletingAlertId, setDeletingAlertId] = useState<string | null>(null);
 
+  type LearningProfile = {
+    total_searches: number;
+    total_clicks: number;
+    total_favorites: number;
+    preferred_categories: string[];
+    preferred_brands: string[];
+    preferred_price_min: number;
+    preferred_price_max: number;
+  };
+  const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
+
   useEffect(() => {
+    fetch("/api/learning/profile")
+      .then((r) => r.json())
+      .then((d) => { if (d.profile) setLearningProfile(d.profile); })
+      .catch(() => {});
     fetch("/api/favorites")
       .then((r) => r.json())
       .then((d) => setFavorites(d.favorites ?? []))
@@ -112,6 +127,50 @@ export default function MyPage() {
       </div>
 
       <div className="px-4 py-5 space-y-6">
+        {/* 🧠 Naviの学習状況 */}
+        <section>
+          {(() => {
+            const totalSearches = learningProfile?.total_searches ?? 0;
+            const level = Math.min(Math.floor(totalSearches / 5), 10);
+            const pct = level * 10;
+            return (
+              <div className="p-4 bg-[#fafaf8] rounded-2xl border border-[#e8e8e4]">
+                <h3 className="text-sm font-bold text-gray-800 mb-3">🧠 Naviの学習状況</h3>
+                {/* レベルバー */}
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>学習レベル {level} / 10</span>
+                  <span>検索 {totalSearches} 回</span>
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, background: "#c8a96e" }}
+                  />
+                </div>
+
+                {level >= 2 && learningProfile ? (
+                  <div className="mt-3 text-xs text-gray-500 space-y-1">
+                    <p className="font-medium text-gray-600">📊 Naviが学んだこと：</p>
+                    {(learningProfile.preferred_categories ?? []).length > 0 && (
+                      <p>よく見るジャンル：{learningProfile.preferred_categories.slice(0, 3).join("・")}</p>
+                    )}
+                    {(learningProfile.preferred_brands ?? []).length > 0 && (
+                      <p>好きなブランド：{learningProfile.preferred_brands.join("・")}</p>
+                    )}
+                    {(learningProfile.preferred_price_min > 0 || learningProfile.preferred_price_max > 0) && (
+                      <p>よく買う価格帯：{learningProfile.preferred_price_min.toLocaleString()}円〜{learningProfile.preferred_price_max.toLocaleString()}円</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-gray-400">
+                    もっと使うほど、あなた好みの提案ができるようになります ✨
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </section>
+
         {/* お気に入り */}
         <section>
           <div className="flex items-center justify-between mb-3">

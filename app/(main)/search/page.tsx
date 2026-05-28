@@ -236,15 +236,8 @@ function HScrollSection({
 type PersonalizedSection = { keyword: string; products: Product[] };
 
 type TopData = {
-  popular: Product[];
-  electronics: Product[];
-  fashion: Product[];
-  beauty: Product[];
-  title: string;
-  description: string;
-  isPersonalized: boolean;
-  situation: string;
   personalizedSections: PersonalizedSection[];
+  isPersonalized: boolean;
 };
 
 function TopBrowse() {
@@ -260,40 +253,13 @@ function TopBrowse() {
       .finally(() => setLoading(false));
   }, []);
 
-  const popular             = data?.popular             ?? [];
-  const electronics         = data?.electronics         ?? [];
-  const fashion             = data?.fashion             ?? [];
-  const beauty              = data?.beauty              ?? [];
-  const isPersonalized      = data?.isPersonalized      ?? false;
-  const description         = data?.description         ?? "";
-  const situation           = data?.situation           ?? "unknown";
+  const isPersonalized       = data?.isPersonalized       ?? false;
   const personalizedSections = data?.personalizedSections ?? [];
 
   return (
     <div className="space-y-3 pb-10 bg-[#f3f4f6]">
-      {/* ヒーローバナー */}
-      <div className="bg-gradient-to-br from-sky-500 to-indigo-600 px-5 pt-6 pb-10 text-white">
-        <p className="text-xs font-medium opacity-80 mb-1">
-          {isPersonalized ? "あなたへのおすすめ" : "今日のおすすめ"}
-        </p>
-        <h2 className="text-2xl font-bold mb-1 leading-tight">
-          {isPersonalized ? (
-            <>最近の検索から<br />ぴったりを厳選</>
-          ) : (
-            <>セール中の商品を<br />一括チェック</>
-          )}
-        </h2>
-        <p className="text-xs opacity-70 mb-4">楽天・Yahoo!から最新人気商品を毎日更新</p>
-        <Link
-          href="/chat"
-          className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl px-4 py-2 text-sm font-medium transition"
-        >
-          🤖 AIに相談する
-        </Link>
-      </div>
-
       {/* カテゴリアイコン */}
-      <div className="bg-white shadow-sm px-4 py-4 -mt-4 relative z-10 rounded-t-3xl">
+      <div className="bg-white px-4 py-4">
         <div className="overflow-x-auto" style={scrollHide}>
           <div className="flex gap-4" style={{ width: "max-content" }}>
             {CATEGORIES.map((cat) => (
@@ -312,33 +278,29 @@ function TopBrowse() {
         </div>
       </div>
 
-      {/* シチュエーション説明カード */}
-      {!loading && description && situation !== "unknown" && (
-        <div className="mx-3 px-4 py-3 bg-white rounded-2xl shadow-sm border-l-4 border-[#c8a96e]">
-          <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
-        </div>
-      )}
-
-      {/* パーソナライズセクション（検索キーワード別） */}
+      {/* 直近5回の検索キーワード別おすすめ */}
       {loading ? (
-        <HScrollSection title="✨ あなたへのおすすめ" products={[]} loading={true} />
+        <>
+          {[...Array(3)].map((_, i) => (
+            <HScrollSection key={i} title="読み込み中..." products={[]} loading={true} />
+          ))}
+        </>
       ) : isPersonalized && personalizedSections.length > 0 ? (
         personalizedSections.map((section) => (
           <HScrollSection
             key={section.keyword}
-            title={`✨ 「${section.keyword}」のおすすめ`}
+            title={`「${section.keyword}」のおすすめ`}
             query={section.keyword}
             products={section.products}
             loading={false}
           />
         ))
-      ) : null}
-
-      {/* 定番セクション */}
-      <HScrollSection title="🔥 今週の人気商品" query="人気 おすすめ" products={popular} loading={loading} />
-      <HScrollSection title="📱 家電のおすすめ" query="家電" products={electronics} loading={loading} />
-      <HScrollSection title="👗 ファッションのおすすめ" query="ファッション" products={fashion} loading={loading} />
-      <HScrollSection title="💄 美容・コスメのおすすめ" query="美容 コスメ" products={beauty} loading={loading} />
+      ) : (
+        <div className="mx-4 mt-8 text-center">
+          <p className="text-gray-400 text-sm mb-1">まだ検索履歴がありません</p>
+          <p className="text-gray-300 text-xs">検索すると、ここに過去の検索に基づくおすすめが表示されます</p>
+        </div>
+      )}
     </div>
   );
 }
