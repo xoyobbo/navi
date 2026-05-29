@@ -16,11 +16,26 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "Navi - AIショッピングアシスタント",
   description:
-    "AIに話しかけるだけで最適な商品を提案。イヤホン・家電・ファッションなどあらゆる商品をAIがあなたの条件に合わせて選びます。",
-  keywords: ["AIショッピング", "商品比較", "おすすめ商品", "楽天", "ショッピングアシスタント"],
+    "楽天・Amazon・Yahoo!の商品をAIが比較して最安値・おすすめ商品を提案。話しかけるだけで予算・用途に合った商品をすぐ見つけられます。",
+  keywords: [
+    // AI・サービス系
+    "AIショッピング", "ショッピングアシスタント", "AI商品検索", "AI おすすめ商品",
+    // 楽天ユーザー向け
+    "楽天 おすすめ商品", "楽天市場 比較", "楽天 最安値", "楽天 人気商品",
+    "楽天 ランキング", "楽天市場 AI", "楽天 商品選び",
+    // Amazon ユーザー向け
+    "Amazon おすすめ", "Amazon 商品比較", "Amazon 最安値", "Amazon 代替",
+    "Amazon 楽天 比較",
+    // 一般ショッピング検索
+    "商品比較", "おすすめ商品", "最安値 比較", "ネット通販 比較",
+    "オンラインショッピング", "通販 おすすめ", "商品検索", "安い商品",
+    // カテゴリ系（購買意欲が高い検索）
+    "イヤホン おすすめ", "家電 比較", "スマホ おすすめ", "プレゼント おすすめ",
+    "コスパ 商品", "人気商品 ランキング", "お買い物 AI",
+  ],
   openGraph: {
     title: "Navi - AIショッピングアシスタント",
-    description: "AIに話しかけるだけで最適な商品を提案します",
+    description: "楽天・Amazon・Yahoo!の商品をAIが比較。話しかけるだけで最安値・おすすめ商品を提案します。",
     url: "https://navi-shop.jp",
     siteName: "Navi",
     locale: "ja_JP",
@@ -29,7 +44,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Navi - AIショッピングアシスタント",
-    description: "AIに話しかけるだけで最適な商品を提案します",
+    description: "楽天・Amazon・Yahoo!の商品をAIが比較。話しかけるだけで最安値・おすすめ商品を提案します。",
   },
   robots: {
     index: true,
