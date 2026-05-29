@@ -117,12 +117,10 @@ export async function GET(req: NextRequest) {
   if (minPrice) url.searchParams.set("minPrice", minPrice);
   if (maxPrice) url.searchParams.set("maxPrice", maxPrice);
 
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
   try {
     const res = await fetch(url.toString(), {
-      headers: { Origin: origin },
-      next: { revalidate: 60 },
+      headers: { Origin: "https://navi-tawny.vercel.app" },
+      cache: "no-store",
     });
 
     if (!res.ok) {

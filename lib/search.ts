@@ -62,10 +62,9 @@ async function fetchRakuten(
   if (minPrice) url.searchParams.set("minPrice", String(minPrice));
   if (maxPrice) url.searchParams.set("maxPrice", String(maxPrice));
 
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const res = await fetch(url.toString(), {
-    headers: { Origin: origin },
-    next: { revalidate: 60 },
+    headers: { Origin: "https://navi-tawny.vercel.app" },
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -134,7 +133,7 @@ async function fetchYahoo(
   if (minPrice) url.searchParams.set("price_from", String(minPrice));
   if (maxPrice) url.searchParams.set("price_to", String(maxPrice));
 
-  const res = await fetch(url.toString(), { next: { revalidate: 60 } });
+  const res = await fetch(url.toString(), { cache: "no-store" });
 
   if (!res.ok) {
     const body = await res.text();
