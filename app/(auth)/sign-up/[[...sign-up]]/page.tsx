@@ -1,4 +1,5 @@
 import { SignUp } from "@clerk/nextjs";
+import Link from "next/link";
 
 export default function SignUpPage() {
   return (
@@ -34,6 +35,15 @@ export default function SignUpPage() {
           },
         }}
       />
+
+      {/* プライバシーポリシー同意文 */}
+      <p className="mt-4 text-xs text-gray-400 text-center max-w-xs leading-relaxed">
+        登録することで、
+        <Link href="/privacy" className="text-sky-500 underline hover:text-sky-600">
+          プライバシーポリシー
+        </Link>
+        に同意したものとみなします。
+      </p>
     </div>
   );
 }
