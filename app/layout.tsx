@@ -82,8 +82,11 @@ export default function RootLayout({
       signUpFallbackRedirectUrl="/search"
       afterSignOutUrl="/"
     >
-      <html lang="ja" className={`${geistSans.variable} antialiased`}>
-        <body className="flex flex-col bg-white">
+      <html lang="ja" className={`${geistSans.variable} antialiased`} style={{ height: "100%" }}>
+        <body
+          className="flex flex-col"
+          style={{ height: "100%", overflow: "hidden", overscrollBehavior: "none" }}
+        >
           {children}
         </body>
       </html>

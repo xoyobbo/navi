@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ProductCard from "@/components/ProductCard";
 import ProductCarousel from "@/components/ProductCarousel";
 import ChatSidebar from "@/components/ChatSidebar";
@@ -497,6 +497,17 @@ export default function ChatPage() {
     }
   }
 
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [sidebarOpen]);
+
   const name = user?.firstName ?? user?.username ?? null;
 
   return (
@@ -551,7 +562,11 @@ export default function ChatPage() {
         </div>
 
         {/* メッセージエリア */}
-        <div ref={messagesRef} className="flex-1 overflow-y-auto" style={{ overscrollBehavior: "contain" }}>
+        <div
+          ref={messagesRef}
+          className="flex-1 overflow-y-auto"
+          style={{ overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}
+        >
           {messages.length === 0 && chatPhase === "idle" ? (
             /* ウェルカム画面 */
             <div className="flex flex-col items-center justify-center h-full px-4 gap-8">
