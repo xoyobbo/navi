@@ -1,21 +1,60 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+
+// 戻るボタンを表示するページと、戻り先
+function useBackButton() {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const backMap: Record<string, string> = {
+    "/mypage":   "/home",
+    "/settings": "/home",
+  };
+
+  const isProduct = pathname.startsWith("/product/");
+  const isBack = isProduct || pathname in backMap;
+
+  const handleBack = () => {
+    if (isProduct) {
+      router.back();
+    } else {
+      router.push(backMap[pathname] ?? "/home");
+    }
+  };
+
+  return { isBack, handleBack };
+}
 
 export default function TopNav() {
   const pathname = usePathname();
-  const isChat = pathname === "/chat" || pathname.startsWith("/chat/");
+  const { isBack, handleBack } = useBackButton();
+
+  const isChat   = pathname === "/chat"   || pathname.startsWith("/chat/");
   const isSearch = pathname === "/search" || pathname.startsWith("/search/");
   const showToggle = isChat || isSearch;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 h-14 flex items-center px-4">
-      {/* ロゴ */}
-      <Link href="/chat" className="flex flex-col shrink-0 mr-4 leading-none">
-        <span className="font-bold text-gray-900 text-xl tracking-tight">Navi</span>
-        <span className="text-[9px] text-gray-400 font-normal tracking-wide mt-0.5">AI Shopping</span>
-      </Link>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 h-14 flex items-center px-4 gap-2">
+
+      {/* 戻るボタン or ロゴ */}
+      {isBack ? (
+        <button
+          onClick={handleBack}
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 transition shrink-0"
+          aria-label="戻る"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+      ) : (
+        <Link href="/home" className="flex flex-col shrink-0 leading-none">
+          <span className="font-bold text-gray-900 text-xl tracking-tight">Navi</span>
+          <span className="text-[9px] text-gray-400 font-normal tracking-wide mt-0.5">AI Shopping</span>
+        </Link>
+      )}
 
       {/* トグル（中央） */}
       <div className="flex-1 flex justify-center">
@@ -24,9 +63,7 @@ export default function TopNav() {
             <Link
               href="/chat"
               className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                isChat
-                  ? "bg-white shadow-sm text-gray-900"
-                  : "text-gray-500 hover:text-gray-700"
+                isChat ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
               }`}
             >
               AI検索
@@ -34,9 +71,7 @@ export default function TopNav() {
             <Link
               href="/search"
               className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                isSearch
-                  ? "bg-white shadow-sm text-gray-900"
-                  : "text-gray-500 hover:text-gray-700"
+                isSearch ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
               }`}
             >
               商品検索
@@ -45,8 +80,8 @@ export default function TopNav() {
         )}
       </div>
 
-      {/* 右側ボタンエリア */}
-      <div className="flex items-center gap-1 shrink-0 ml-4">
+      {/* 右側ボタン */}
+      <div className="flex items-center gap-1 shrink-0">
         <Link
           href="/mypage"
           className={`flex items-center gap-1 h-9 px-2 rounded-full transition ${

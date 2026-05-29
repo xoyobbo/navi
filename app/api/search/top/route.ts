@@ -72,8 +72,10 @@ export async function GET(): Promise<NextResponse<TopData>> {
         if (recentKeywords.length > 0) {
           const results = await Promise.all(
             recentKeywords.map(async (kw) => {
+              // sort=standard で毎回同じ順序を保つ
               const products = await searchRakuten({ keyword: kw, hits: 10 });
-              return { keyword: kw, products };
+              // 上位10件を固定（ランダム性を排除）
+              return { keyword: kw, products: products.slice(0, 10) };
             })
           );
 
@@ -83,7 +85,10 @@ export async function GET(): Promise<NextResponse<TopData>> {
       }
     }
 
-    return NextResponse.json({ personalizedSections, isPersonalized });
+    return NextResponse.json(
+      { personalizedSections, isPersonalized },
+      { headers: { "Cache-Control": "private, max-age=300" } } // 5分キャッシュ
+    );
   } catch (e) {
     console.error("[top] エラー:", e);
     return NextResponse.json({ personalizedSections: [], isPersonalized: false });
