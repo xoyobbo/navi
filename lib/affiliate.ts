@@ -1,4 +1,7 @@
-const getAssociateId = () => process.env.AMAZON_ASSOCIATE_ID ?? "";
+// NEXT_PUBLIC_ prefix でクライアント・サーバー両対応
+const getAssociateId = () =>
+  process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ??
+  process.env.AMAZON_ASSOCIATE_ID ?? "";
 
 // 個別商品（ASIN）へのアフィリエイトリンク
 export const buildAmazonAffiliateUrl = (asin: string): string => {

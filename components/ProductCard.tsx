@@ -230,6 +230,29 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
             詳細を見る
           </button>
 
+          <a
+            href={`https://www.amazon.co.jp/s?k=${encodeURIComponent(product.name.slice(0, 20))}&tag=${process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ?? "kakeaki012105-22"}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              e.stopPropagation();
+              fetch("/api/track", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  actionType: "amazon_click",
+                  productId: product.id,
+                  productName: product.name,
+                  productPrice: product.price,
+                  source: "amazon",
+                }),
+              }).catch(() => {});
+            }}
+            className="w-full block text-center text-xs font-medium text-white bg-[#FF9900] hover:bg-[#e68a00] transition rounded-xl py-2"
+          >
+            Amazonで探す
+          </a>
+
           {onCompare && (
             <button
               onClick={(e) => { e.stopPropagation(); onCompare(product); }}

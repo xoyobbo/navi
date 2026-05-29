@@ -537,6 +537,33 @@ export default function ProductDetailPage() {
                 Yahoo!ショッピングで購入する →
               </a>
             )}
+            {/* Amazonボタン */}
+            <a
+              href={`https://www.amazon.co.jp/s?k=${encodeURIComponent(product.name.slice(0, 30))}&tag=${process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ?? "kakeaki012105-22"}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-center text-base font-bold text-white bg-[#FF9900] hover:bg-[#e68a00] transition rounded-2xl py-4 shadow-sm"
+              onClick={() => {
+                fetch("/api/track", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    actionType: "amazon_click",
+                    productId: product.id,
+                    productName: product.name,
+                    productCategory: product.category,
+                    productPrice: product.price,
+                    source: "amazon",
+                  }),
+                }).catch(() => {});
+              }}
+            >
+              🔍 Amazonでも探す →
+            </a>
+            <p className="text-xs text-gray-400 text-center -mt-1">
+              ※Amazonの検索ページに移動します
+            </p>
+
             {!product.purchaseLinks?.rakuten && !product.purchaseLinks?.yahoo && (
               <a
                 href={product.affiliateUrl}
