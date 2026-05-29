@@ -15,7 +15,6 @@ export default function AboutPage() {
                 ["サービス名", "Navi"],
                 ["サイトURL", "https://navi-shop.jp"],
                 ["運営者", "個人運営"],
-                ["所在地", "千葉県柏市"],
                 ["メール", "liuchuanxiangliang@gmail.com"],
                 ["事業内容", "AIショッピングアシスタント事業"],
               ].map(([label, value]) => (
