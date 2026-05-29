@@ -44,6 +44,7 @@ async function fetchRakuten(
 ): Promise<Product[]> {
   const appId = process.env.RAKUTEN_APP_ID;
   const accessKey = process.env.RAKUTEN_ACCESS_KEY;
+  const affiliateId = process.env.RAKUTEN_AFFILIATE_ID;
   if (!appId || !accessKey) {
     console.warn("[search] 楽天キー未設定");
     return [];
@@ -59,6 +60,7 @@ async function fetchRakuten(
   url.searchParams.set("sort", sort === "price_desc" ? "-itemPrice" : sort === "price_asc" ? "+itemPrice" : "standard");
   url.searchParams.set("availability", "1");
   url.searchParams.set("imageFlag", "1");
+  if (affiliateId) url.searchParams.set("affiliateId", affiliateId);
   if (minPrice) url.searchParams.set("minPrice", String(minPrice));
   if (maxPrice) url.searchParams.set("maxPrice", String(maxPrice));
 

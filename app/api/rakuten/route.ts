@@ -84,6 +84,7 @@ const HITS = 30; // Rakuten API の1リクエスト最大件数
 export async function GET(req: NextRequest) {
   const appId = process.env.RAKUTEN_APP_ID;
   const accessKey = process.env.RAKUTEN_ACCESS_KEY;
+  const affiliateId = process.env.RAKUTEN_AFFILIATE_ID;
   if (!appId || !accessKey) {
     return NextResponse.json(
       { error: "RAKUTEN_APP_ID または RAKUTEN_ACCESS_KEY が設定されていません" },
@@ -114,6 +115,7 @@ export async function GET(req: NextRequest) {
   url.searchParams.set("sort", "standard");
   url.searchParams.set("availability", "1");
   url.searchParams.set("imageFlag", "1");
+  if (affiliateId) url.searchParams.set("affiliateId", affiliateId);
   if (minPrice) url.searchParams.set("minPrice", minPrice);
   if (maxPrice) url.searchParams.set("maxPrice", maxPrice);
 

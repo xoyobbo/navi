@@ -75,6 +75,7 @@ function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
 export async function searchRakuten(params: RakutenSearchParams): Promise<Product[]> {
   const appId = process.env.RAKUTEN_APP_ID;
   const accessKey = process.env.RAKUTEN_ACCESS_KEY;
+  const affiliateId = process.env.RAKUTEN_AFFILIATE_ID;
   if (!appId || !accessKey) {
     console.error("[rakuten] RAKUTEN_APP_ID または RAKUTEN_ACCESS_KEY が未設定");
     return [];
@@ -93,6 +94,7 @@ export async function searchRakuten(params: RakutenSearchParams): Promise<Produc
     url.searchParams.set("sort", "standard");
     url.searchParams.set("availability", "1");
     url.searchParams.set("imageFlag", "1");
+    if (affiliateId) url.searchParams.set("affiliateId", affiliateId);
     if (params.minPrice) url.searchParams.set("minPrice", String(params.minPrice));
     if (params.maxPrice) url.searchParams.set("maxPrice", String(params.maxPrice));
 
