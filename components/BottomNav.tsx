@@ -47,7 +47,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="md:hidden"
+      className="flex md:hidden"
       style={{
         position: "fixed",
         bottom: 0,
@@ -56,7 +56,6 @@ export default function BottomNav() {
         zIndex: 100,
         background: "white",
         borderTop: "1px solid var(--color-border)",
-        display: "flex",
         paddingBottom: "env(safe-area-inset-bottom)",
         boxShadow: "0 -2px 10px rgba(0,0,0,0.06)",
       }}
