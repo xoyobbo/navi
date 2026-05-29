@@ -86,12 +86,24 @@ export async function GET(): Promise<NextResponse<TopData>> {
         if (recentKeywords.length > 0) {
           const results = await Promise.all(
             recentKeywords.map(async (kw) => {
+              // キーワード単位のキャッシュ（ユーザー共有・2時間）
+              const kwKey = `kw:${kw.toLowerCase()}`;
+              try {
+                const hit = await redis.get<{ keyword: string; products: Product[] }>(kwKey);
+                if (hit) return hit;
+              } catch {}
+
               const products = await searchRakuten({ keyword: kw, hits: 20 });
-              // レビュー件数の多い順で固定ソート（毎回同じ商品を表示）
               const stable = [...products]
                 .sort((a, b) => b.reviewCount - a.reviewCount)
                 .slice(0, 10);
-              return { keyword: kw, products: stable };
+              const section = { keyword: kw, products: stable };
+
+              try {
+                await redis.set(kwKey, section, { ex: 7200 });
+              } catch {}
+
+              return section;
             })
           );
 

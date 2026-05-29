@@ -254,18 +254,19 @@ function TopBrowse() {
     async function load() {
       setLoading(true);
       try {
-        // 最近の検索タグ用
-        const histRes = await fetch("/api/history", { cache: "no-store" });
-        const histData = await histRes.json();
+        // 履歴とおすすめ商品を並列取得
+        const [histRes, topRes] = await Promise.all([
+          fetch("/api/history", { cache: "no-store" }),
+          fetch("/api/search/top"),
+        ]);
+        const [histData, topData]: [{ history?: { query: string }[] }, TopData] =
+          await Promise.all([histRes.json(), topRes.json()]);
+
         const queries: string[] = (histData.history ?? [])
           .map((h: { query: string }) => h.query)
           .filter(Boolean);
         const unique = [...new Set(queries)] as string[];
         setRecentHistory(unique.slice(0, 7));
-
-        // おすすめ商品（Redis キャッシュ付きエンドポイントを使用）
-        const topRes = await fetch("/api/search/top");
-        const topData: TopData = await topRes.json();
         setPersonalizedSections(topData.personalizedSections ?? []);
       } catch {
         // エラーは無視
