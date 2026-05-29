@@ -718,7 +718,7 @@ export default function ChatPage() {
                 onChange={(e) => {
                   setInput(e.target.value);
                   e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -736,8 +736,15 @@ export default function ChatPage() {
                     : "商品名やカテゴリを入力…"
                 }
                 rows={1}
-                className="flex-1 bg-transparent text-gray-800 placeholder-gray-400 outline-none resize-none leading-relaxed"
-                style={{ fontSize: "16px" }}
+                className="flex-1 bg-transparent text-gray-800 placeholder-gray-400 outline-none resize-none"
+                style={{
+                  fontSize: "16px",
+                  lineHeight: "1.5",
+                  minHeight: "24px",
+                  maxHeight: "160px",
+                  overflowY: "auto",
+                  transition: "height 0.1s ease",
+                }}
               />
               <button
                 onClick={() => handleSubmit()}
