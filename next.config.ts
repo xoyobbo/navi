@@ -10,8 +10,10 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "navi-shop.jp" },
       { protocol: "https", hostname: "**.yahooapis.jp" },
       { protocol: "https", hostname: "**.yimg.jp" },
+      { protocol: "https", hostname: "shopping.c.yimg.jp" },
     ],
   },
+  logging: { fetches: { fullUrl: false } },
 };
 
 export default nextConfig;

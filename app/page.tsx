@@ -20,6 +20,7 @@ export default function RootPage() {
         >
           ログイン
         </a>
+
       </header>
 
       {/* メインコンテンツ */}
@@ -57,7 +58,7 @@ export default function RootPage() {
         {/* CTAボタン */}
         <div className="w-full max-w-sm space-y-3">
           <a
-            href="/sign-in"
+            href="/sign-up"
             className="block w-full text-center text-base font-bold text-white bg-sky-500 hover:bg-sky-600 transition rounded-2xl py-4 shadow-md"
           >
             はじめる（無料）
