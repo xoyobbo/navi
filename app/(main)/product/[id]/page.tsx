@@ -230,7 +230,6 @@ export default function ProductDetailPage() {
 
     // ② localStorage になければ API から取得
     if (!loaded) {
-      console.log("[product] API から取得中:", id);
       fetch(`/api/product/by-id?id=${encodeURIComponent(id)}`)
         .then(async (r) => {
           const data = await r.json();
@@ -246,7 +245,6 @@ export default function ProductDetailPage() {
           } catch { /* noop */ }
           loadSummary(p);
           loadSimilar(p);
-          console.log("[product] API 取得成功:", p.name);
         })
         .catch((err) => {
           console.error("[product] 取得失敗:", err.message);

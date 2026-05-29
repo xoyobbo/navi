@@ -67,7 +67,6 @@ export async function GET(): Promise<NextResponse<TopData>> {
         const historyQueries = (history ?? []).map((h) => h.query as string);
         const recentKeywords = extractRecentKeywords(historyQueries);
 
-        console.log("直近キーワード:", recentKeywords);
 
         if (recentKeywords.length > 0) {
           const results = await Promise.all(

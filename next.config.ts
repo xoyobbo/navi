@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.yimg.jp" },
       { protocol: "https", hostname: "shopping.c.yimg.jp" },
     ],
+    minimumCacheTTL: 86400,
   },
   logging: { fetches: { fullUrl: false } },
 };
