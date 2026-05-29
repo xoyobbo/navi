@@ -565,7 +565,7 @@ export default function ChatPage() {
         <div
           ref={messagesRef}
           className="flex-1 overflow-y-auto"
-          style={{ overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}
+          style={{ overscrollBehavior: "contain" }}
         >
           {messages.length === 0 && chatPhase === "idle" ? (
             /* ウェルカム画面 */
