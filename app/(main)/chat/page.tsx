@@ -500,7 +500,18 @@ export default function ChatPage() {
   const name = user?.firstName ?? user?.username ?? null;
 
   return (
-    <div className="flex h-[calc(100vh-56px)] overflow-hidden">
+    <div
+      style={{
+        position: "fixed",
+        top: "var(--nav-top-h)",
+        bottom: "calc(var(--nav-bottom-h) + env(safe-area-inset-bottom))",
+        left: 0,
+        right: 0,
+        display: "flex",
+        overflow: "hidden",
+        background: "var(--color-bg)",
+      }}
+    >
       {/* サイドバー */}
       <ChatSidebar
         currentSessionId={sessionId}
@@ -540,7 +551,7 @@ export default function ChatPage() {
         </div>
 
         {/* メッセージエリア */}
-        <div ref={messagesRef} className="flex-1 overflow-y-auto">
+        <div ref={messagesRef} className="flex-1 overflow-y-auto" style={{ overscrollBehavior: "contain" }}>
           {messages.length === 0 && chatPhase === "idle" ? (
             /* ウェルカム画面 */
             <div className="flex flex-col items-center justify-center h-full px-4 gap-8">
@@ -599,7 +610,13 @@ export default function ChatPage() {
                         key={opt}
                         onClick={() => handleSubmit(opt)}
                         disabled={loading}
-                        className="px-3 py-2 text-sm bg-white border border-sky-300 text-sky-700 rounded-xl hover:bg-sky-50 disabled:opacity-40 transition font-medium"
+                        className="px-4 text-sm bg-white border rounded-2xl disabled:opacity-40 transition font-medium"
+                        style={{
+                          borderColor: "var(--color-primary)",
+                          color: "var(--color-primary)",
+                          minHeight: "44px",
+                          padding: "10px 16px",
+                        }}
                       >
                         {opt}
                       </button>
@@ -630,7 +647,13 @@ export default function ChatPage() {
                         scrollToBottom();
                       }}
                       disabled={loading}
-                      className="w-full py-3 border border-gray-900 rounded-xl bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 transition disabled:opacity-40"
+                      className="w-full rounded-xl bg-white text-sm font-medium hover:bg-gray-50 transition disabled:opacity-40"
+                      style={{
+                        border: "1.5px solid var(--color-primary)",
+                        color: "var(--color-text)",
+                        padding: "14px",
+                        minHeight: "52px",
+                      }}
                     >
                       🔍 条件を追加して絞り込む
                     </button>
@@ -641,7 +664,13 @@ export default function ChatPage() {
                         sessionIdRef.current = null;
                         setSessionId(null);
                       }}
-                      className="w-full py-3 border border-gray-200 rounded-xl bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition"
+                      className="w-full rounded-xl bg-white text-sm font-medium hover:bg-gray-50 transition"
+                      style={{
+                        border: "1.5px solid var(--color-border)",
+                        color: "var(--color-text-sub)",
+                        padding: "14px",
+                        minHeight: "52px",
+                      }}
                     >
                       🔄 別の商品を探す
                     </button>
@@ -692,12 +721,14 @@ export default function ChatPage() {
                     : "商品名やカテゴリを入力…"
                 }
                 rows={1}
-                className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none resize-none leading-relaxed"
+                className="flex-1 bg-transparent text-gray-800 placeholder-gray-400 outline-none resize-none leading-relaxed"
+                style={{ fontSize: "16px" }}
               />
               <button
                 onClick={() => handleSubmit()}
                 disabled={!input.trim() || loading}
-                className="w-8 h-8 flex items-center justify-center rounded-xl bg-sky-500 disabled:opacity-30 transition shrink-0"
+                className="w-11 h-11 flex items-center justify-center rounded-full disabled:opacity-30 transition shrink-0"
+                style={{ background: input.trim() ? "var(--color-primary)" : "var(--color-border)" }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-4 h-4">
                   <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />

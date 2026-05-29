@@ -372,7 +372,10 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="pb-16 bg-white min-h-screen">
+    <div
+      className="bg-white min-h-screen"
+      style={{ paddingBottom: "calc(76px + var(--nav-bottom-h) + env(safe-area-inset-bottom))" }}
+    >
       {/* 戻るボタンバー */}
       <div className="sticky top-14 z-20 bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-3">
         <button
@@ -677,6 +680,159 @@ export default function ProductDetailPage() {
           </div>
         </section>
       )}
+
+      {/* スマホ固定購入ボタンバー */}
+      <div
+        className="md:hidden"
+        style={{
+          position: "fixed",
+          bottom: "calc(var(--nav-bottom-h) + env(safe-area-inset-bottom))",
+          left: 0,
+          right: 0,
+          padding: "10px 16px",
+          background: "white",
+          borderTop: "1px solid var(--color-border)",
+          display: "flex",
+          gap: "8px",
+          alignItems: "center",
+          boxShadow: "0 -2px 10px rgba(0,0,0,0.08)",
+          zIndex: 50,
+        }}
+      >
+        {/* お気に入りボタン */}
+        <button
+          onClick={handleFav}
+          aria-label={fav ? "お気に入り解除" : "お気に入り追加"}
+          style={{
+            width: "52px",
+            height: "52px",
+            flexShrink: 0,
+            border: "1.5px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: fav ? "#FEF2F2" : "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "22px",
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={fav ? "#EF4444" : "none"} stroke={fav ? "#EF4444" : "currentColor"} strokeWidth={1.8} style={{ width: "22px", height: "22px" }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+          </svg>
+        </button>
+
+        {/* 楽天購入ボタン */}
+        {product.purchaseLinks?.rakuten ? (
+          <a
+            href={product.purchaseLinks.rakuten}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "52px",
+              background: "var(--color-rakuten)",
+              color: "white",
+              borderRadius: "var(--radius-sm)",
+              textAlign: "center",
+              fontSize: "15px",
+              fontWeight: 700,
+              textDecoration: "none",
+              gap: "4px",
+            }}
+            onClick={() => {
+              fetch("/api/track", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  actionType: "purchase_click",
+                  productId: product.id,
+                  productName: product.name,
+                  productCategory: product.category,
+                  productPrice: product.price,
+                  source: "rakuten",
+                }),
+              }).catch(() => {});
+            }}
+          >
+            🛒 楽天で購入
+          </a>
+        ) : (
+          <a
+            href={product.affiliateUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "52px",
+              background: "var(--color-primary)",
+              color: "white",
+              borderRadius: "var(--radius-sm)",
+              textAlign: "center",
+              fontSize: "15px",
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            購入ページへ →
+          </a>
+        )}
+
+        {/* Amazonボタン */}
+        <button
+          onClick={async () => {
+            fetch("/api/track", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                actionType: "amazon_click",
+                productId: product.id,
+                productName: product.name,
+                productCategory: product.category,
+                productPrice: product.price,
+                source: "amazon",
+              }),
+            }).catch(() => {});
+            const win = window.open("", "_blank");
+            const assocId = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ?? "navi-shop-22";
+            try {
+              const res = await fetch("/api/extract-keyword", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ productName: product.name }),
+              });
+              const data = await res.json();
+              const kw = data.keyword || product.name.slice(0, 20);
+              if (win) win.location.href = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${assocId}`;
+            } catch {
+              if (win) win.location.href = `https://www.amazon.co.jp/s?k=${encodeURIComponent(product.name.slice(0, 20))}&tag=${assocId}`;
+            }
+          }}
+          style={{
+            width: "52px",
+            height: "52px",
+            flexShrink: 0,
+            background: "var(--color-amazon)",
+            color: "white",
+            borderRadius: "var(--radius-sm)",
+            border: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "11px",
+            fontWeight: 700,
+            textAlign: "center",
+            lineHeight: "1.3",
+          }}
+        >
+          Amazon<br />で探す
+        </button>
+      </div>
 
     </div>
   );

@@ -5,10 +5,10 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/types/product";
 
-const SOURCE_BADGE: Record<string, { label: string; color: string }> = {
-  rakuten: { label: "楽天", color: "bg-red-50 text-red-600" },
-  yahoo: { label: "Yahoo!", color: "bg-purple-50 text-purple-600" },
-  amazon: { label: "Amazon", color: "bg-orange-50 text-orange-600" },
+const SOURCE_BADGE: Record<string, { label: string; color: string; solid: string }> = {
+  rakuten: { label: "楽天", color: "bg-red-50 text-red-600", solid: "#BF0000" },
+  yahoo:   { label: "Yahoo!", color: "bg-purple-50 text-purple-600", solid: "#FF0033" },
+  amazon:  { label: "Amazon", color: "bg-orange-50 text-orange-600", solid: "#FF9900" },
 };
 
 type Props = {
@@ -48,7 +48,7 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
     prevImageRef.current = product.image;
     setImgError(false);
   }
-  const sourceBadge = SOURCE_BADGE[product.source] ?? { label: product.source, color: "bg-gray-100 text-gray-600" };
+  const sourceBadge = SOURCE_BADGE[product.source] ?? { label: product.source, color: "bg-gray-100 text-gray-600", solid: "#888" };
   const router = useRouter();
 
   function handleFav(e: React.MouseEvent) {
@@ -142,7 +142,7 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
         {/* お気に入りボタン */}
         <button
           onClick={handleFav}
-          className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur shadow-sm transition"
+          className="absolute top-2 right-2 w-10 h-10 flex items-center justify-center rounded-full bg-white/90 backdrop-blur shadow-sm transition"
           aria-label={fav ? "お気に入り解除" : "お気に入り追加"}
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={fav ? "#EF4444" : "none"} stroke={fav ? "#EF4444" : "#9CA3AF"} strokeWidth={1.8} className="w-4 h-4">
@@ -150,7 +150,10 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
           </svg>
         </button>
         {/* ソースバッジ */}
-        <span className={`absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sourceBadge.color}`}>
+        <span
+          className="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded"
+          style={{ background: sourceBadge.solid, color: "white" }}
+        >
           {sourceBadge.label}
         </span>
         {/* バッジ（badge prop 優先、なければスコア点数） */}
@@ -214,7 +217,12 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
           </p>
           <button
             onClick={handlePurchaseClick}
-            className="w-full text-center text-sm font-medium text-white bg-sky-500 hover:bg-sky-600 transition rounded-xl py-2"
+            className="w-full text-center text-sm font-semibold text-white transition rounded-xl"
+            style={{
+              background: "var(--color-primary)",
+              padding: "11px 8px",
+              minHeight: "44px",
+            }}
           >
             詳細を見る
           </button>
@@ -249,7 +257,12 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
                 if (win) win.location.href = `https://www.amazon.co.jp/s?k=${encodeURIComponent(product.name.slice(0, 20))}&tag=${id}`;
               }
             }}
-            className="w-full text-center text-xs font-medium text-white bg-[#FF9900] hover:bg-[#e68a00] transition rounded-xl py-2"
+            className="w-full text-center text-xs font-semibold text-white transition rounded-xl"
+            style={{
+              background: "var(--color-amazon)",
+              padding: "11px 8px",
+              minHeight: "44px",
+            }}
           >
             Amazonで探す
           </button>
@@ -258,13 +271,14 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
             <button
               onClick={(e) => { e.stopPropagation(); onCompare(product); }}
               disabled={compareDisabled && !isComparing}
-              className={`w-full text-center text-xs font-medium rounded-xl py-1.5 border transition ${
+              className={`w-full text-center text-xs font-medium rounded-xl border transition ${
                 isComparing
                   ? "bg-sky-50 border-sky-400 text-sky-600"
                   : compareDisabled
                   ? "border-gray-100 text-gray-300 cursor-not-allowed bg-gray-50"
                   : "border-gray-200 text-gray-500 hover:border-sky-400 hover:text-sky-600"
               }`}
+              style={{ minHeight: "40px", padding: "8px" }}
             >
               {isComparing ? "✓ 比較中" : "＋ 比較する"}
             </button>

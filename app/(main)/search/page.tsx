@@ -289,12 +289,21 @@ function TopBrowse() {
               <button
                 key={cat.q}
                 onClick={() => router.push(`/search?q=${encodeURIComponent(cat.q)}`)}
-                className="flex flex-col items-center gap-1.5 min-w-[52px]"
+                className="flex flex-col items-center gap-1.5"
+                style={{ minWidth: "56px" }}
               >
-                <div className="w-12 h-12 flex items-center justify-center bg-sky-50 rounded-full text-2xl">
+                <div
+                  className="flex items-center justify-center rounded-full text-2xl"
+                  style={{
+                    width: "52px",
+                    height: "52px",
+                    background: "var(--color-bg)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                >
                   {cat.emoji}
                 </div>
-                <span className="text-[10px] font-medium text-gray-600 whitespace-nowrap">{cat.label}</span>
+                <span style={{ fontSize: "11px", fontWeight: 500, color: "var(--color-text-sub)", whiteSpace: "nowrap" }}>{cat.label}</span>
               </button>
             ))}
           </div>
@@ -392,11 +401,17 @@ function SearchResults({
             <button
               key={value}
               onClick={() => onSortChange(value)}
-              className={`text-xs font-medium px-3 py-1.5 rounded-full whitespace-nowrap transition ${
-                sort === value
-                  ? "bg-sky-500 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              className="whitespace-nowrap transition"
+              style={{
+                fontSize: "13px",
+                fontWeight: 500,
+                padding: "8px 16px",
+                borderRadius: "999px",
+                minHeight: "36px",
+                background: sort === value ? "var(--color-primary)" : "var(--color-bg)",
+                color: sort === value ? "white" : "var(--color-text-sub)",
+                border: sort === value ? "none" : "1px solid var(--color-border)",
+              }}
             >
               {label}
             </button>
@@ -587,16 +602,32 @@ function SearchContent() {
       {/* 検索バー（固定） */}
       <form
         onSubmit={handleSearch}
-        className="sticky top-14 z-20 bg-white border-b border-gray-100 px-4 pb-3 pt-2"
+        style={{
+          position: "sticky",
+          top: "var(--nav-top-h)",
+          zIndex: 90,
+          background: "white",
+          borderBottom: "1px solid var(--color-border)",
+          padding: "10px 16px",
+        }}
       >
         <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-2xl px-4 py-2.5">
+          <div
+            className="flex-1 flex items-center gap-2"
+            style={{
+              background: "var(--color-bg)",
+              borderRadius: "var(--radius-md)",
+              padding: "0 14px",
+              height: "48px",
+              border: "1.5px solid var(--color-border)",
+            }}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={2}
-              stroke="#9CA3AF"
+              stroke="var(--color-text-sub)"
               className="w-4 h-4 shrink-0"
             >
               <path
@@ -612,8 +643,15 @@ function SearchContent() {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSearch();
                 if (e.key === "Enter" && e.nativeEvent.isComposing) e.preventDefault();
               }}
-              placeholder="商品を検索..."
-              className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
+              placeholder="商品を検索"
+              style={{
+                flex: 1,
+                background: "none",
+                border: "none",
+                outline: "none",
+                fontSize: "16px",
+                color: "var(--color-text)",
+              }}
             />
             {query && (
               <button
@@ -622,7 +660,14 @@ function SearchContent() {
                   setQuery("");
                   router.push("/search");
                 }}
-                className="shrink-0 text-gray-400"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--color-text-sub)",
+                  padding: "4px",
+                  minHeight: "auto",
+                  flexShrink: 0,
+                }}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -643,7 +688,17 @@ function SearchContent() {
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              className="md:hidden flex items-center gap-1 shrink-0 text-sm font-medium text-gray-600 border border-gray-200 rounded-2xl px-3 py-2.5 bg-white whitespace-nowrap"
+              className="md:hidden flex items-center gap-1 shrink-0 whitespace-nowrap"
+              style={{
+                fontSize: "14px",
+                fontWeight: 500,
+                color: "var(--color-text)",
+                border: "1.5px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                padding: "0 12px",
+                height: "48px",
+                background: "white",
+              }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25" />

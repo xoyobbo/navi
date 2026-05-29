@@ -1,4 +1,5 @@
 import TopNav from "@/components/TopNav";
+import BottomNav from "@/components/BottomNav";
 import UserSync from "@/components/UserSync";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -6,9 +7,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     <>
       <UserSync />
       <TopNav />
-      <div className="pt-14 min-h-screen bg-white">
+      <main
+        className="pt-14"
+        style={{
+          background: "var(--color-bg)",
+          paddingBottom: "calc(var(--nav-bottom-h) + env(safe-area-inset-bottom))",
+          minHeight: "100dvh",
+        }}
+      >
         {children}
-      </div>
+      </main>
+      <BottomNav />
     </>
   );
 }
