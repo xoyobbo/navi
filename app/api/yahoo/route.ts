@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Product } from "@/types/product";
 
+export const maxDuration = 15
+
 type YahooImage = {
   small?: string;
   medium?: string;

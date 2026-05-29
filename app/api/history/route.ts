@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { redis } from "@/lib/redis";
 
 function normalizeQueryKeyword(q: string): string {
   return q
@@ -82,6 +83,15 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error("[history] POST 保存失敗:", error.message);
       return NextResponse.json({ ok: false });
+    }
+
+    // 履歴保存後にキャッシュを削除（次回アクセス時に最新の履歴で再生成される）
+    const cacheKey = `recommend:${userId || "guest"}`
+    try {
+      await redis.del(cacheKey)
+      console.log("キャッシュリセット:", cacheKey)
+    } catch (e) {
+      console.error("キャッシュ削除エラー:", e)
     }
 
     return NextResponse.json({ ok: true });

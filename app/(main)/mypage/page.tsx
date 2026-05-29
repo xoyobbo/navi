@@ -4,7 +4,6 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import PushNotificationSetup from "@/components/PushNotificationSetup";
 
 type FavoriteItem = {
   id: string;
@@ -23,17 +22,6 @@ type HistoryItem = {
   created_at: string;
 };
 
-type AlertItem = {
-  id: string;
-  product_name: string;
-  product_url: string;
-  source: string;
-  target_price: number;
-  current_price: number;
-  is_triggered: boolean;
-  created_at: string;
-};
-
 const SOURCE_BADGE: Record<string, { label: string; color: string }> = {
   rakuten: { label: "楽天", color: "bg-red-50 text-red-600" },
   yahoo: { label: "Yahoo!", color: "bg-purple-50 text-purple-600" },
@@ -45,11 +33,8 @@ export default function MyPage() {
   const { signOut } = useClerk();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loadingFav, setLoadingFav] = useState(true);
   const [loadingHist, setLoadingHist] = useState(true);
-  const [loadingAlerts, setLoadingAlerts] = useState(true);
-  const [deletingAlertId, setDeletingAlertId] = useState<string | null>(null);
 
   type LearningProfile = {
     total_searches: number;
@@ -79,26 +64,10 @@ export default function MyPage() {
       .catch(() => {})
       .finally(() => setLoadingHist(false));
 
-    fetch("/api/price-alerts")
-      .then((r) => r.json())
-      .then((d) => setAlerts(d.alerts ?? []))
-      .catch(() => {})
-      .finally(() => setLoadingAlerts(false));
   }, []);
-
-  async function handleDeleteAlert(id: string) {
-    setDeletingAlertId(id);
-    try {
-      await fetch(`/api/price-alerts/${id}`, { method: "DELETE" });
-      setAlerts((prev) => prev.filter((a) => a.id !== id));
-    } finally {
-      setDeletingAlertId(null);
-    }
-  }
 
   return (
     <div className="">
-      <PushNotificationSetup />
       {/* ヘッダー */}
       <div className="bg-gradient-to-br from-sky-500 to-sky-400 px-4 pt-12 pb-6 text-white">
         <div className="flex items-center gap-4">
@@ -266,88 +235,6 @@ export default function MyPage() {
             </div>
           ) : (
             <p className="text-sm text-gray-400">まだ検索履歴がありません</p>
-          )}
-        </section>
-
-        {/* 価格アラート */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-gray-800">🔔 価格アラート</h2>
-            <span className="text-xs text-gray-400">{alerts.filter((a) => !a.is_triggered).length}件設定中</span>
-          </div>
-
-          {loadingAlerts ? (
-            <div className="space-y-2">
-              {[...Array(2)].map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl h-16 animate-pulse border border-gray-100" />
-              ))}
-            </div>
-          ) : alerts.length > 0 ? (
-            <div className="space-y-2">
-              {alerts.map((alert) => {
-                const badge = SOURCE_BADGE[alert.source] ?? { label: alert.source, color: "bg-gray-100 text-gray-600" };
-                const reached = alert.current_price <= alert.target_price;
-                return (
-                  <div
-                    key={alert.id}
-                    className={`flex items-center gap-3 bg-white rounded-2xl p-3 border shadow-sm ${
-                      alert.is_triggered ? "border-green-100 bg-green-50/30" : "border-gray-100"
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 line-clamp-1 leading-snug">
-                        {alert.product_name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${badge.color}`}>
-                          {badge.label}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          現在 <span className={`font-bold ${reached ? "text-green-600" : "text-gray-800"}`}>
-                            ¥{alert.current_price.toLocaleString()}
-                          </span>
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          目標 <span className="font-bold text-sky-600">¥{alert.target_price.toLocaleString()}</span>
-                        </span>
-                      </div>
-                    </div>
-                    {alert.is_triggered ? (
-                      <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full shrink-0">
-                        通知済み
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold bg-sky-50 text-sky-600 px-2 py-1 rounded-full shrink-0">
-                        監視中
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handleDeleteAlert(alert.id)}
-                      disabled={deletingAlertId === alert.id}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 transition shrink-0"
-                      aria-label="削除"
-                    >
-                      {deletingAlertId === alert.id ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 animate-spin text-gray-300" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="#9CA3AF" className="w-4 h-4 hover:stroke-red-400">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-8 bg-white rounded-2xl border border-gray-100">
-              <p className="text-3xl mb-2">🔔</p>
-              <p className="text-sm text-gray-400">アラートが設定されていません</p>
-              <p className="text-xs text-gray-300 mt-1">商品カードのベルマークで設定できます</p>
-            </div>
           )}
         </section>
 

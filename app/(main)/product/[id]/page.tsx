@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, startTransition } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
-import PriceAlertModal from "@/components/PriceAlertModal";
 import ImageSlider from "@/components/ImageSlider";
 import { extractColors, COLOR_MAP } from "@/lib/color-extractor";
 import type { Product } from "@/types/product";
@@ -192,7 +191,6 @@ export default function ProductDetailPage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [similar, setSimilar] = useState<Product[]>([]);
   const [fav, setFav] = useState(false);
-  const [alertOpen, setAlertOpen] = useState(false);
 
   const colors = useMemo(() => (product ? extractColors(product.name) : []), [product]);
 
@@ -626,26 +624,6 @@ export default function ProductDetailPage() {
               </svg>
               {fav ? "お気に入り済み" : "お気に入り"}
             </button>
-            <button
-              onClick={() => setAlertOpen(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border border-gray-200 bg-white text-gray-600 text-sm font-medium hover:border-sky-300 hover:text-sky-500 transition"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.8}
-                stroke="currentColor"
-                className="w-5 h-5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
-                />
-              </svg>
-              価格アラート
-            </button>
           </div>
         </div>
       </div>
@@ -700,12 +678,6 @@ export default function ProductDetailPage() {
         </section>
       )}
 
-      {/* 価格アラートモーダル */}
-      <PriceAlertModal
-        product={product}
-        isOpen={alertOpen}
-        onClose={() => setAlertOpen(false)}
-      />
     </div>
   );
 }

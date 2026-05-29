@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/types/product";
-import PriceAlertModal from "@/components/PriceAlertModal";
 
 const SOURCE_BADGE: Record<string, { label: string; color: string }> = {
   rakuten: { label: "楽天", color: "bg-red-50 text-red-600" },
@@ -43,7 +42,6 @@ function StarRating({ rating }: { rating: number }) {
 
 export default function ProductCard({ product, reason, badge, onFavorite, isFavorited = false, onCompare, isComparing = false, compareDisabled = false }: Props) {
   const [fav, setFav] = useState(isFavorited);
-  const [alertOpen, setAlertOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const prevImageRef = useRef(product.image);
   if (prevImageRef.current !== product.image) {
@@ -127,8 +125,10 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
             src={product.image}
             alt={product.name}
             fill
+            loading="lazy"
+            quality={85}
             className="object-cover"
-            sizes="(max-width: 640px) 50vw, 33vw"
+            sizes="(max-width: 768px) 50vw, 25vw"
             unoptimized
             onError={() => setImgError(true)}
           />
@@ -153,17 +153,6 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
         <span className={`absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sourceBadge.color}`}>
           {sourceBadge.label}
         </span>
-        {/* ベルボタン（価格アラート） */}
-        <button
-          onClick={(e) => { e.stopPropagation(); setAlertOpen(true); }}
-          className="absolute bottom-2 left-2 w-7 h-7 flex items-center justify-center rounded-full bg-white/80 backdrop-blur shadow-sm hover:bg-white transition"
-          aria-label="価格アラートを設定"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="#9CA3AF" className="w-3.5 h-3.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-          </svg>
-        </button>
-
         {/* バッジ（badge prop 優先、なければスコア点数） */}
         {badge ? (
           <span className={`absolute bottom-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full shadow ${
@@ -283,11 +272,6 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
         </div>
       </div>
     </div>
-    <PriceAlertModal
-      product={product}
-      isOpen={alertOpen}
-      onClose={() => setAlertOpen(false)}
-    />
     </>
   );
 }

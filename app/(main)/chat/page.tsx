@@ -18,9 +18,14 @@ const SUGGESTED_PROMPTS = [
 // ── 型定義 ────────────────────────────────────────────────
 
 type ChatPhase = "idle" | "questioning" | "finalizing" | "result" | "refining";
-type ChatMsg =
-  | { id: string; role: "user"; text: string }
-  | { id: string; role: "assistant"; text: string };
+
+interface ChatMessage {
+  role: "user" | "assistant"
+  content: string
+  products?: Product[]
+  options?: string[]
+}
+
 type ConversationMessage = { role: "user" | "assistant"; content: string };
 type Conditions = {
   keyword: string;
@@ -29,6 +34,7 @@ type Conditions = {
   useCase: string | null;
   features: string[];
   other: string | null;
+  gender: string | null;
 };
 
 // ── 商品選定ユーティリティ ────────────────────────────────
@@ -56,6 +62,13 @@ function getBadge(product: Product, absoluteIndex: number, allProducts: Product[
 
 // ── 条件管理ユーティリティ ────────────────────────────────
 
+function detectGender(text: string): string | null {
+  if (/メンズ|男性|男の子|男用|紳士/.test(text)) return "メンズ";
+  if (/レディース|女性|女の子|女用|婦人/.test(text)) return "レディース";
+  if (/キッズ|子供|子ども|ジュニア/.test(text)) return "キッズ";
+  return null;
+}
+
 function applyConditionAnswer(
   answer: string,
   step: number,
@@ -63,6 +76,11 @@ function applyConditionAnswer(
   priceRanges: PriceRange[]
 ): Conditions {
   const updated = { ...current };
+
+  // どのステップでも性別を検出
+  const gender = detectGender(answer);
+  if (gender) updated.gender = gender;
+
   if (step === 0) {
     const range = priceRanges.find((r) => r.label === answer);
     if (range) {
@@ -91,6 +109,7 @@ const INITIAL_CONDITIONS: Conditions = {
   keyword: "",
   minPrice: null,
   maxPrice: null,
+  gender: null,
   useCase: null,
   features: [],
   other: null,
@@ -125,7 +144,7 @@ function TypingDots() {
 export default function ChatPage() {
   const { user } = useUser();
 
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // フロー管理
   const [chatPhase, setChatPhase] = useState<ChatPhase>("idle");
@@ -134,7 +153,6 @@ export default function ChatPage() {
   const [conditions, setConditions] = useState<Conditions>(INITIAL_CONDITIONS);
 
   // Claude会話履歴・選択肢・価格帯
-  const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([]);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
   const [dynamicPriceRanges, setDynamicPriceRanges] = useState<PriceRange[]>([]);
 
@@ -162,8 +180,8 @@ export default function ChatPage() {
     }, 50);
   }
 
-  function addMsg(role: "user" | "assistant", text: string) {
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role, text }]);
+  function addMsg(role: "user" | "assistant", content: string) {
+    setMessages((prev) => [...prev, { role, content }]);
   }
 
   // ── セッション管理ヘルパー ─────────────────────────────
@@ -200,7 +218,6 @@ export default function ChatPage() {
     setQuestionStep(0);
     setOriginalKeyword("");
     setConditions(INITIAL_CONDITIONS);
-    setConversationHistory([]);
     setCurrentOptions([]);
     setFinalProducts([]);
     setDynamicPriceRanges([]);
@@ -228,11 +245,10 @@ export default function ChatPage() {
       const res = await fetch(`/api/sessions/${sid}`);
       const data = await res.json();
 
-      const msgs: ChatMsg[] = (data.messages ?? []).map(
-        (m: { id: string; role: string; content: string }) => ({
-          id: m.id,
+      const msgs: ChatMessage[] = (data.messages ?? []).map(
+        (m: { role: string; content: string }) => ({
           role: m.role as "user" | "assistant",
-          text: m.content,
+          content: m.content,
         })
       );
       setMessages(msgs);
@@ -285,7 +301,7 @@ export default function ChatPage() {
     };
   }
 
-  async function startFlow(keyword: string) {
+  async function startFlow(keyword: string, prevMessages: ChatMessage[]) {
     // 新規検索：セッションをリセットして新規作成
     sessionIdRef.current = null;
     setSessionId(null);
@@ -295,7 +311,6 @@ export default function ChatPage() {
     setChatPhase("questioning");
     setQuestionStep(0);
     setFinalProducts([]);
-    setConversationHistory([]);
     setCurrentOptions([]);
 
     fetch("/api/history", {
@@ -307,14 +322,10 @@ export default function ChatPage() {
     // セッション作成（非同期、完了前にClaudeを呼び出してもOK）
     ensureSession();
 
-    // Claude に最初の質問を生成させる
-    const { message: naviMsg, options, priceRanges } = await callQuestionAPI(keyword, []);
+    // Claude に最初の質問を生成させる（messages由来の履歴を渡す）
+    const initHistory = prevMessages.map(m => ({ role: m.role, content: m.content }));
+    const { message: naviMsg, options, priceRanges } = await callQuestionAPI(keyword, initHistory);
     if (priceRanges) setDynamicPriceRanges(priceRanges);
-    const newHistory: ConversationMessage[] = [
-      { role: "user", content: keyword },
-      { role: "assistant", content: naviMsg },
-    ];
-    setConversationHistory(newHistory);
     addMsg("assistant", naviMsg);
     setCurrentOptions(options);
 
@@ -323,11 +334,18 @@ export default function ChatPage() {
     saveMsg("assistant", naviMsg);
   }
 
-  async function fetchProducts(keyword: string, cond: Conditions) {
+  async function fetchProducts(keyword: string, cond: Conditions, history: ConversationMessage[]) {
     addMsg("assistant", "条件に合う商品を探しています...");
     scrollToBottom();
 
-    const searchKeyword = [keyword, cond.features[0] ?? "", cond.other ?? ""]
+    // 性別・features・other を全てキーワードに含める
+    const searchKeyword = [
+      keyword,
+      cond.gender ?? "",
+      cond.useCase && cond.useCase !== "こだわらない" && cond.useCase !== "特に決めていない" ? cond.useCase : "",
+      ...(cond.features ?? []),
+      cond.other && cond.other !== "特になし" && cond.other !== "こだわらない" ? cond.other : "",
+    ]
       .filter(Boolean)
       .join(" ")
       .trim();
@@ -339,7 +357,8 @@ export default function ChatPage() {
         body: JSON.stringify({
           message: searchKeyword,
           originalKeyword: keyword,
-          searchConditions: { minPrice: cond.minPrice, maxPrice: cond.maxPrice },
+          searchConditions: { minPrice: cond.minPrice, maxPrice: cond.maxPrice, gender: cond.gender },
+          conversationHistory: history,
           isFinal: true,
         }),
       });
@@ -367,24 +386,62 @@ export default function ChatPage() {
     }
   }
 
+  // ── 条件蓄積ユーティリティ ────────────────────────────
+
+  const updateConditionsFromAnswer = (answer: string) => {
+    setConditions(prev => {
+      const updated = { ...prev }
+
+      if (
+        answer.includes("メンズ") ||
+        answer.includes("男性") ||
+        answer.includes("男")
+      ) {
+        updated.gender = "メンズ"
+      }
+      if (
+        answer.includes("レディース") ||
+        answer.includes("女性") ||
+        answer.includes("女")
+      ) {
+        updated.gender = "レディース"
+      }
+
+      const priceMatch = answer.match(/(\d+)万円/)
+      if (priceMatch) {
+        const price = parseInt(priceMatch[1]) * 10000
+        updated.maxPrice = price
+        updated.minPrice = Math.floor(price * 0.7)
+      }
+
+      return updated
+    })
+  }
+
   // ── メイン送信ハンドラ ────────────────────────────────
 
   async function handleSubmit(text?: string) {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
 
-    addMsg("user", msg);
+    // updatedMessages を同期的に構築してから state を更新する
+    const newUserMessage: ChatMessage = { role: "user", content: msg }
+    const updatedMessages: ChatMessage[] = [...messages, newUserMessage]
+
+    setMessages(updatedMessages);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setLoading(true);
     setCurrentOptions([]);
     scrollToBottom();
 
+    updateConditionsFromAnswer(msg);
+
     try {
       switch (chatPhase) {
         case "idle":
         case "result": {
-          await startFlow(msg);
+          await startFlow(msg, updatedMessages);
           break;
         }
 
@@ -396,13 +453,9 @@ export default function ChatPage() {
 
           saveMsg("user", msg);
 
-          const { message: naviMsg, options } = await callQuestionAPI(msg, conversationHistory);
-          const nextHistory: ConversationMessage[] = [
-            ...conversationHistory,
-            { role: "user", content: msg },
-            { role: "assistant", content: naviMsg },
-          ];
-          setConversationHistory(nextHistory);
+          // messages由来の履歴を使う（msg は callQuestionAPI 第1引数で渡す）
+          const questionHistory = messages.map(m => ({ role: m.role, content: m.content }));
+          const { message: naviMsg, options } = await callQuestionAPI(msg, questionHistory);
           addMsg("assistant", naviMsg);
           setCurrentOptions(options);
           saveMsg("assistant", naviMsg);
@@ -420,7 +473,8 @@ export default function ChatPage() {
           };
           setConditions(finalCond);
           saveMsg("user", msg);
-          await fetchProducts(originalKeyword, finalCond);
+          const finalHistory = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+          await fetchProducts(originalKeyword, finalCond, finalHistory);
           break;
         }
 
@@ -432,7 +486,8 @@ export default function ChatPage() {
           setConditions(refinedCond);
           saveMsg("user", msg);
           setChatPhase("questioning"); // fetchProductsがresultに戻す
-          await fetchProducts(originalKeyword, refinedCond);
+          const refineHistory = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+          await fetchProducts(originalKeyword, refinedCond, refineHistory);
           break;
         }
       }
@@ -513,20 +568,20 @@ export default function ChatPage() {
           ) : (
             <div className="px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
               {/* メッセージ一覧 */}
-              {messages.map((msg) =>
+              {messages.map((msg, index) =>
                 msg.role === "user" ? (
-                  <div key={msg.id} className="flex justify-end">
+                  <div key={index} className="flex justify-end">
                     <div className="bg-gray-900 text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[75%] text-sm leading-relaxed whitespace-pre-wrap">
-                      {msg.text}
+                      {msg.content}
                     </div>
                   </div>
                 ) : (
-                  <div key={msg.id} className="flex gap-3">
+                  <div key={index} className="flex gap-3">
                     <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center shrink-0 mt-0.5">
                       <NaviIcon size={16} />
                     </div>
                     <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap pt-1">
-                      {msg.text}
+                      {msg.content}
                     </p>
                   </div>
                 )

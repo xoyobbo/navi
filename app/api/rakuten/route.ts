@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Product } from "@/types/product";
 import { normalizeKeyword } from "@/lib/search-utils";
+import { validateKeyword, validatePrice } from "@/lib/validation";
+
+export const maxDuration = 15
 
 type RakutenItem = {
   itemCode: string;
@@ -93,16 +96,18 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = req.nextUrl;
-  const query = searchParams.get("q");
-  if (!query) {
-    return NextResponse.json({ error: "クエリパラメータ q が必要です" }, { status: 400 });
+  const rawQuery = searchParams.get("q") ?? "";
+
+  const { isValid, cleaned, error: validationError } = validateKeyword(rawQuery);
+  if (!isValid) {
+    return NextResponse.json({ products: [], error: validationError }, { status: 400 });
   }
 
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-  const minPrice = searchParams.get("minPrice");
-  const maxPrice = searchParams.get("maxPrice");
+  const minPrice = validatePrice(Number(searchParams.get("minPrice")));
+  const maxPrice = validatePrice(Number(searchParams.get("maxPrice")));
 
-  const normalizedQuery = normalizeKeyword(query);
+  const normalizedQuery = normalizeKeyword(cleaned);
 
   const url = new URL(
     "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401"
@@ -116,8 +121,8 @@ export async function GET(req: NextRequest) {
   url.searchParams.set("availability", "1");
   url.searchParams.set("imageFlag", "1");
   if (affiliateId) url.searchParams.set("affiliateId", affiliateId);
-  if (minPrice) url.searchParams.set("minPrice", minPrice);
-  if (maxPrice) url.searchParams.set("maxPrice", maxPrice);
+  if (minPrice !== null) url.searchParams.set("minPrice", String(minPrice));
+  if (maxPrice !== null) url.searchParams.set("maxPrice", String(maxPrice));
 
   try {
     const res = await fetch(url.toString(), {

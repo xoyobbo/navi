@@ -21,21 +21,37 @@ export function deduplicateProducts(products: Product[]): Product[] {
 }
 
 export async function searchMixed(params: MixSearchParams, total = 30): Promise<Product[]> {
-  const [rakuten, yahoo] = await Promise.all([
-    searchRakuten({ ...params, hits: 30 }),
-    searchYahoo({ ...params, hits: 15 }),
-  ]);
+  try {
+    const [rakuten, yahoo] = await Promise.allSettled([
+      searchRakuten({ ...params, hits: 30 }),
+      searchYahoo({ ...params, hits: 15 }),
+    ])
 
-  const mixed: Product[] = [];
-  let ri = 0;
-  let yi = 0;
+    const rakutenProducts = rakuten.status === "fulfilled" ? rakuten.value : []
+    const yahooProducts   = yahoo.status  === "fulfilled" ? yahoo.value  : []
 
-  while (mixed.length < total && (ri < rakuten.length || yi < yahoo.length)) {
-    for (let i = 0; i < 2; i++) {
-      if (ri < rakuten.length && mixed.length < total) mixed.push(rakuten[ri++]);
+    console.log("楽天:", rakuten.status, rakutenProducts.length, "件")
+    console.log("Yahoo!:", yahoo.status, yahooProducts.length, "件")
+
+    if (rakutenProducts.length === 0 && yahooProducts.length === 0) {
+      console.error("全APIが失敗しました")
+      return []
     }
-    if (yi < yahoo.length && mixed.length < total) mixed.push(yahoo[yi++]);
-  }
 
-  return deduplicateProducts(mixed);
+    const mixed: Product[] = []
+    let ri = 0
+    let yi = 0
+
+    while (mixed.length < total && (ri < rakutenProducts.length || yi < yahooProducts.length)) {
+      for (let i = 0; i < 2; i++) {
+        if (ri < rakutenProducts.length && mixed.length < total) mixed.push(rakutenProducts[ri++])
+      }
+      if (yi < yahooProducts.length && mixed.length < total) mixed.push(yahooProducts[yi++])
+    }
+
+    return deduplicateProducts(mixed)
+  } catch (e) {
+    console.error("searchMixedエラー:", e)
+    return []
+  }
 }

@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { searchRakuten } from "@/lib/api/rakuten";
+import { redis } from "@/lib/redis";
 import type { Product } from "@/types/product";
 
 export type PersonalizedSection = {
@@ -44,6 +45,21 @@ export async function GET(): Promise<NextResponse<TopData>> {
   try {
     const { userId } = await auth();
 
+    // ユーザーごとのキャッシュキー
+    const cacheKey = `recommend:${userId || "guest"}`
+
+    // ① キャッシュを確認する
+    try {
+      const cached = await redis.get<TopData>(cacheKey)
+      if (cached) {
+        console.log("キャッシュヒット:", cacheKey)
+        return NextResponse.json(cached)
+      }
+    } catch (e) {
+      console.error("キャッシュ取得エラー:", e)
+    }
+
+    // ② キャッシュがなければ商品を取得
     let personalizedSections: PersonalizedSection[] = [];
     let isPersonalized = false;
 
@@ -67,7 +83,6 @@ export async function GET(): Promise<NextResponse<TopData>> {
         const historyQueries = (history ?? []).map((h) => h.query as string);
         const recentKeywords = extractRecentKeywords(historyQueries);
 
-
         if (recentKeywords.length > 0) {
           const results = await Promise.all(
             recentKeywords.map(async (kw) => {
@@ -86,10 +101,17 @@ export async function GET(): Promise<NextResponse<TopData>> {
       }
     }
 
-    return NextResponse.json(
-      { personalizedSections, isPersonalized },
-      { headers: { "Cache-Control": "private, max-age=300" } } // 5分キャッシュ
-    );
+    const result: TopData = { personalizedSections, isPersonalized }
+
+    // ③ 結果をキャッシュに保存（有効期限：6時間）
+    try {
+      await redis.set(cacheKey, result, { ex: 21600 })
+      console.log("キャッシュ保存:", cacheKey)
+    } catch (e) {
+      console.error("キャッシュ保存エラー:", e)
+    }
+
+    return NextResponse.json(result);
   } catch (e) {
     console.error("[top] エラー:", e);
     return NextResponse.json({ personalizedSections: [], isPersonalized: false });

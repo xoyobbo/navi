@@ -245,12 +245,16 @@ function TopBrowse() {
   const [loading, setLoading] = useState(true);
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
   const [personalizedSections, setPersonalizedSections] = useState<{ keyword: string; products: Product[] }[]>([]);
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
+    // 既に取得済みなら再取得しない
+    if (hasFetched) return;
+
     async function load() {
       setLoading(true);
       try {
-        // 履歴取得
+        // 最近の検索タグ用
         const histRes = await fetch("/api/history", { cache: "no-store" });
         const histData = await histRes.json();
         const queries: string[] = (histData.history ?? [])
@@ -259,29 +263,19 @@ function TopBrowse() {
         const unique = [...new Set(queries)] as string[];
         setRecentHistory(unique.slice(0, 7));
 
-        // 最新5件のキーワードで商品取得（サーバーキャッシュなし）
-        const keywords = unique.slice(0, 5);
-        if (keywords.length === 0) { setLoading(false); return; }
-
-        const results = await Promise.all(
-          keywords.map(async (kw) => {
-            const res = await fetch(`/api/rakuten?q=${encodeURIComponent(kw)}&page=1`, { cache: "no-store" });
-            const d = await res.json();
-            const products = ((d.products ?? []) as Product[])
-              .sort((a, b) => b.reviewCount - a.reviewCount)
-              .slice(0, 10);
-            return { keyword: kw, products };
-          })
-        );
-        setPersonalizedSections(results.filter((s) => s.products.length > 0));
+        // おすすめ商品（Redis キャッシュ付きエンドポイントを使用）
+        const topRes = await fetch("/api/search/top");
+        const topData: TopData = await topRes.json();
+        setPersonalizedSections(topData.personalizedSections ?? []);
       } catch {
         // エラーは無視
       } finally {
         setLoading(false);
+        setHasFetched(true);
       }
     }
     load();
-  }, []);
+  }, []); // 空配列で初回のみ実行
 
   const isPersonalized = personalizedSections.length > 0;
 

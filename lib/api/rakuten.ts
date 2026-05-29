@@ -1,6 +1,15 @@
 import type { Product } from "@/types/product";
 import { normalizeKeyword } from "@/lib/search-utils";
 
+const validateProduct = (product: Partial<Product>): product is Product =>
+  typeof product.id === "string" &&
+  product.id.length > 0 &&
+  typeof product.name === "string" &&
+  product.name.length > 0 &&
+  typeof product.price === "number" &&
+  product.price >= 0 &&
+  typeof product.image === "string";
+
 interface RakutenSearchParams {
   keyword: string;
   minPrice?: number | null;
@@ -117,6 +126,7 @@ export async function searchRakuten(params: RakutenSearchParams): Promise<Produc
 
     return (data.Items as (RakutenItem | { Item: RakutenItem })[])
       .map(toProduct)
+      .filter(validateProduct)
       .filter((p) => !p.name.includes("ふるさと納税"));
   } catch (e) {
     console.error("[rakuten] 例外:", e);
