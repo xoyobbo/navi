@@ -38,6 +38,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://navi-shop.jp",
   },
+  verification: {
+    google: "N0BGdH1qCRc5Rl8ClYvJvWH9cVqIChGXmlmOTzA109M",
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
