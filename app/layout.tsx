@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { jaJP } from "@clerk/localizations";
 import { checkEnvVars } from "@/lib/env-check";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
 checkEnvVars();
@@ -43,7 +44,10 @@ export default function RootLayout({
       afterSignOutUrl="/"
     >
       <html lang="ja" className={`${geistSans.variable} h-full antialiased`}>
-        <body className="min-h-full flex flex-col bg-white">{children}</body>
+        <body className="min-h-full flex flex-col bg-white">
+          {children}
+          <Footer />
+        </body>
       </html>
     </ClerkProvider>
   );
