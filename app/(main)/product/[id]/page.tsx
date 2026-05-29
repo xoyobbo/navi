@@ -538,12 +538,9 @@ export default function ProductDetailPage() {
               </a>
             )}
             {/* Amazonボタン */}
-            <a
-              href={`https://www.amazon.co.jp/s?k=${encodeURIComponent(product.name.slice(0, 30))}&tag=${process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ?? "kakeaki012105-22"}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-center text-base font-bold text-white bg-[#FF9900] hover:bg-[#e68a00] transition rounded-2xl py-4 shadow-sm"
-              onClick={() => {
+            <button
+              className="block w-full text-center text-base font-bold text-white bg-[#FF9900] hover:bg-[#e68a00] transition rounded-2xl py-4 shadow-sm"
+              onClick={async () => {
                 fetch("/api/track", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -556,10 +553,24 @@ export default function ProductDetailPage() {
                     source: "amazon",
                   }),
                 }).catch(() => {});
+                const win = window.open("", "_blank");
+                const id = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ?? "navi-shop-22";
+                try {
+                  const res = await fetch("/api/extract-keyword", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ productName: product.name }),
+                  });
+                  const data = await res.json();
+                  const kw = data.keyword || product.name.slice(0, 30);
+                  if (win) win.location.href = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${id}`;
+                } catch {
+                  if (win) win.location.href = `https://www.amazon.co.jp/s?k=${encodeURIComponent(product.name.slice(0, 30))}&tag=${id}`;
+                }
               }}
             >
               🔍 Amazonでも探す →
-            </a>
+            </button>
             <p className="text-xs text-gray-400 text-center -mt-1">
               ※Amazonの検索ページに移動します
             </p>

@@ -22,6 +22,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/actions",
   "/api/preferences",
   "/api/push(.*)",
+  "/api/extract-keyword(.*)",
   "/api/history(.*)",
 ]);
 
