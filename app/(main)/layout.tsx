@@ -9,15 +9,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <UserSync />
       <TopNav />
       <main
+        className="pt-14"
         style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          overflowX: "hidden",
-          overscrollBehavior: "contain",
           background: "var(--color-bg)",
-          paddingTop: "var(--nav-top-h)",
           paddingBottom: "calc(var(--nav-bottom-h) + env(safe-area-inset-bottom))",
+          minHeight: "100dvh",
         }}
       >
         {children}
