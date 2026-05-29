@@ -45,6 +45,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* デスクトップではBottomNavなし */
+@media (min-width: 768px) {
+  :root {
+    --nav-bottom-h: 0px;
+  }
+}
+
 button {
   cursor: pointer;
   transition: opacity 0.15s, transform 0.1s;

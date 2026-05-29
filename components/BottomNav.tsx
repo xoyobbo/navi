@@ -47,6 +47,7 @@ export default function BottomNav() {
 
   return (
     <nav
+      className="md:hidden"
       style={{
         position: "fixed",
         bottom: 0,

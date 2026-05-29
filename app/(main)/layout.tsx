@@ -1,6 +1,7 @@
 import TopNav from "@/components/TopNav";
 import BottomNav from "@/components/BottomNav";
 import UserSync from "@/components/UserSync";
+import Footer from "@/components/Footer";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         {children}
+        <Footer />
       </main>
       <BottomNav />
     </>
