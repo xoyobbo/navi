@@ -96,10 +96,9 @@ export async function searchRakuten(params: RakutenSearchParams): Promise<Produc
     if (params.minPrice) url.searchParams.set("minPrice", String(params.minPrice));
     if (params.maxPrice) url.searchParams.set("maxPrice", String(params.maxPrice));
 
-    const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const res = await fetch(url.toString(), {
-      headers: { Origin: origin },
-      next: { revalidate: 60 },
+      headers: { Origin: "https://navi-tawny.vercel.app" },
+      cache: "no-store",
     });
 
     if (!res.ok) {
