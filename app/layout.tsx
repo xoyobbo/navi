@@ -15,7 +15,29 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: "Navi - AIショッピングアシスタント",
-  description: "友達のように最適な商品を選んでくれるAIアシスタント",
+  description:
+    "AIに話しかけるだけで最適な商品を提案。イヤホン・家電・ファッションなどあらゆる商品をAIがあなたの条件に合わせて選びます。",
+  keywords: ["AIショッピング", "商品比較", "おすすめ商品", "楽天", "ショッピングアシスタント"],
+  openGraph: {
+    title: "Navi - AIショッピングアシスタント",
+    description: "AIに話しかけるだけで最適な商品を提案します",
+    url: "https://navi-shop.jp",
+    siteName: "Navi",
+    locale: "ja_JP",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Navi - AIショッピングアシスタント",
+    description: "AIに話しかけるだけで最適な商品を提案します",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "https://navi-shop.jp",
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
