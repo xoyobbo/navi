@@ -22,7 +22,7 @@ function useBackButton() {
     } else if (isProduct) {
       router.back();                    // 商品詳細 → 前のページ
     } else if (isMypage || isSettings) {
-      router.push("/home");
+      router.push("/search");
     }
   };
 
@@ -52,7 +52,7 @@ function TopNavInner() {
           </svg>
         </button>
       ) : (
-        <Link href="/home" className="flex flex-col shrink-0 leading-none">
+        <Link href="/search" className="flex flex-col shrink-0 leading-none">
           <span className="font-bold text-gray-900 text-xl tracking-tight">Navi</span>
           <span className="text-[9px] text-gray-400 font-normal tracking-wide mt-0.5">AI Shopping</span>
         </Link>

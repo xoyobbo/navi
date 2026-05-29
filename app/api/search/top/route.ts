@@ -72,10 +72,12 @@ export async function GET(): Promise<NextResponse<TopData>> {
         if (recentKeywords.length > 0) {
           const results = await Promise.all(
             recentKeywords.map(async (kw) => {
-              // sort=standard で毎回同じ順序を保つ
-              const products = await searchRakuten({ keyword: kw, hits: 10 });
-              // 上位10件を固定（ランダム性を排除）
-              return { keyword: kw, products: products.slice(0, 10) };
+              const products = await searchRakuten({ keyword: kw, hits: 20 });
+              // レビュー件数の多い順で固定ソート（毎回同じ商品を表示）
+              const stable = [...products]
+                .sort((a, b) => b.reviewCount - a.reviewCount)
+                .slice(0, 10);
+              return { keyword: kw, products: stable };
             })
           );
 

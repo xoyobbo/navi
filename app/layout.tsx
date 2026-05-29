@@ -38,8 +38,9 @@ export default function RootLayout({
   return (
     <ClerkProvider
       localization={jaJP}
-      signInFallbackRedirectUrl="/home"
-      signUpFallbackRedirectUrl="/home"
+      signInFallbackRedirectUrl="/search"
+      signUpFallbackRedirectUrl="/search"
+      afterSignOutUrl="/"
     >
       <html lang="ja" className={`${geistSans.variable} h-full antialiased`}>
         <body className="min-h-full flex flex-col bg-white">{children}</body>
