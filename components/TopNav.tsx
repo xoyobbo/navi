@@ -1,33 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-// 戻るボタンを表示するページと、戻り先
 function useBackButton() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
 
-  const backMap: Record<string, string> = {
-    "/mypage":   "/home",
-    "/settings": "/home",
-  };
+  const isProduct      = pathname.startsWith("/product/");
+  const isSearchResult = pathname === "/search" && !!searchParams.get("q");
+  const isMypage       = pathname === "/mypage";
+  const isSettings     = pathname === "/settings";
 
-  const isProduct = pathname.startsWith("/product/");
-  const isBack = isProduct || pathname in backMap;
+  const isBack = isProduct || isSearchResult || isMypage || isSettings;
 
   const handleBack = () => {
-    if (isProduct) {
-      router.back();
-    } else {
-      router.push(backMap[pathname] ?? "/home");
+    if (isSearchResult) {
+      router.push("/search");           // 検索結果 → 検索トップ
+    } else if (isProduct) {
+      router.back();                    // 商品詳細 → 前のページ
+    } else if (isMypage || isSettings) {
+      router.push("/home");
     }
   };
 
   return { isBack, handleBack };
 }
 
-export default function TopNav() {
+function TopNavInner() {
   const pathname = usePathname();
   const { isBack, handleBack } = useBackButton();
 
@@ -107,5 +109,13 @@ export default function TopNav() {
         </Link>
       </div>
     </header>
+  );
+}
+
+export default function TopNav() {
+  return (
+    <Suspense fallback={null}>
+      <TopNavInner />
+    </Suspense>
   );
 }
