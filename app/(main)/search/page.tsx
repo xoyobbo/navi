@@ -242,32 +242,48 @@ type TopData = {
 
 function TopBrowse() {
   const router = useRouter();
-  const [data, setData] = useState<TopData | null>(null);
   const [loading, setLoading] = useState(true);
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
+  const [personalizedSections, setPersonalizedSections] = useState<{ keyword: string; products: Product[] }[]>([]);
 
   useEffect(() => {
-    fetch("/api/search/top")
-      .then((r) => r.json())
-      .then((d: TopData) => setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-
-    // 検索履歴7件を取得
-    fetch("/api/history")
-      .then((r) => r.json())
-      .then((d) => {
-        const queries: string[] = (d.history ?? [])
+    async function load() {
+      setLoading(true);
+      try {
+        // 履歴取得
+        const histRes = await fetch("/api/history", { cache: "no-store" });
+        const histData = await histRes.json();
+        const queries: string[] = (histData.history ?? [])
           .map((h: { query: string }) => h.query)
           .filter(Boolean);
-        // 重複除去して7件
-        setRecentHistory([...new Set(queries)].slice(0, 7));
-      })
-      .catch(() => {});
+        const unique = [...new Set(queries)] as string[];
+        setRecentHistory(unique.slice(0, 7));
+
+        // 最新5件のキーワードで商品取得（サーバーキャッシュなし）
+        const keywords = unique.slice(0, 5);
+        if (keywords.length === 0) { setLoading(false); return; }
+
+        const results = await Promise.all(
+          keywords.map(async (kw) => {
+            const res = await fetch(`/api/rakuten?q=${encodeURIComponent(kw)}&page=1`, { cache: "no-store" });
+            const d = await res.json();
+            const products = ((d.products ?? []) as Product[])
+              .sort((a, b) => b.reviewCount - a.reviewCount)
+              .slice(0, 10);
+            return { keyword: kw, products };
+          })
+        );
+        setPersonalizedSections(results.filter((s) => s.products.length > 0));
+      } catch {
+        // エラーは無視
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
 
-  const isPersonalized       = data?.isPersonalized       ?? false;
-  const personalizedSections = data?.personalizedSections ?? [];
+  const isPersonalized = personalizedSections.length > 0;
 
   return (
     <div className="space-y-3 pb-10 bg-[#f3f4f6]">
@@ -447,6 +463,7 @@ function SearchContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [searched, setSearched] = useState(false);
+  const [browseKey, setBrowseKey] = useState(0);
 
   const brandList = useMemo(() => extractBrands(allProducts), [allProducts]);
   const featureList = useMemo(
@@ -497,6 +514,7 @@ function SearchContent() {
         setSearched(false);
         setAllProducts([]);
         setQuery("");
+        setBrowseKey((k) => k + 1); // 履歴を最新に更新
       });
     }
   }, [urlQ, runSearch]);
@@ -642,8 +660,8 @@ function SearchContent() {
         </div>
       </form>
 
-      {/* トップブラウズ */}
-      {!searched && !loading && <TopBrowse />}
+      {/* トップブラウズ：検索から戻るたびに key を変えて強制リフレッシュ */}
+      {!searched && !loading && <TopBrowse key={browseKey} />}
 
       {/* 初期ロード中 */}
       {!searched && loading && (
