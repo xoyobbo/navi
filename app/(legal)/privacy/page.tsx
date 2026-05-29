@@ -76,8 +76,7 @@ export default function PrivacyPage() {
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">お問い合わせ</h2>
         <p className="text-gray-600">
-          プライバシーに関するお問い合わせは以下までご連絡ください：<br />
-          メール：<a href="mailto:liuchuanxiangliang@gmail.com" className="text-sky-600 underline">liuchuanxiangliang@gmail.com</a>
+          プライバシーに関するお問い合わせは<a href="/contact" className="text-sky-600 underline">お問い合わせページ</a>よりご連絡ください。
         </p>
       </section>
 

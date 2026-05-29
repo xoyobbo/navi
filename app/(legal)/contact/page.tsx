@@ -8,17 +8,13 @@ export default function ContactPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-8">お問い合わせ</h1>
 
       <p className="text-gray-600 leading-relaxed mb-6">
-        ご意見・ご要望・不具合報告など、お気軽にご連絡ください。
+        ご意見・ご要望・不具合報告など、お気軽にお問い合わせください。
       </p>
 
-      <div className="bg-sky-50 rounded-2xl p-6 inline-block">
-        <p className="text-sm text-gray-500 mb-1">お問い合わせ先メールアドレス</p>
-        <a
-          href="mailto:liuchuanxiangliang@gmail.com"
-          className="text-sky-600 text-lg font-medium underline"
-        >
-          liuchuanxiangliang@gmail.com
-        </a>
+      <div className="bg-sky-50 rounded-2xl p-6">
+        <p className="text-gray-600 text-sm">
+          お問い合わせはサービス内のフィードバック機能よりお送りください。
+        </p>
       </div>
 
       <p className="text-sm text-gray-400 mt-8">

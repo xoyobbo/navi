@@ -15,7 +15,6 @@ export default function AboutPage() {
                 ["サービス名", "Navi"],
                 ["サイトURL", "https://navi-shop.jp"],
                 ["運営者", "個人運営"],
-                ["メール", "liuchuanxiangliang@gmail.com"],
                 ["事業内容", "AIショッピングアシスタント事業"],
               ].map(([label, value]) => (
                 <tr key={label} className="border-b border-gray-100">
