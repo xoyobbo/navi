@@ -83,11 +83,10 @@ export default function RootLayout({
       afterSignOutUrl="/"
     >
       <html lang="ja" className={`${geistSans.variable} antialiased`} style={{ height: "100%" }}>
-        <body
-          className="flex flex-col"
-          style={{ height: "100%", overflow: "hidden", overscrollBehavior: "none" }}
-        >
-          {children}
+        <body style={{ height: "100%", overflow: "hidden", overscrollBehavior: "none", background: "var(--color-bg)" }}>
+          <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {children}
+          </div>
         </body>
       </html>
     </ClerkProvider>

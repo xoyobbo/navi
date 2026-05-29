@@ -10,16 +10,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <TopNav />
       <main
         style={{
-          position: "fixed",
-          top: "var(--nav-top-h)",
-          bottom: 0,
-          left: 0,
-          right: 0,
+          flex: 1,
+          minHeight: 0,
           overflowY: "auto",
           overflowX: "hidden",
-          WebkitOverflowScrolling: "touch",
           overscrollBehavior: "contain",
           background: "var(--color-bg)",
+          paddingTop: "var(--nav-top-h)",
           paddingBottom: "calc(var(--nav-bottom-h) + env(safe-area-inset-bottom))",
         }}
       >
