@@ -151,10 +151,15 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function scrollToBottom() {
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    setTimeout(() => {
+      if (messagesRef.current) {
+        messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+      }
+    }, 50);
   }
 
   function addMsg(role: "user" | "assistant", text: string) {
@@ -440,7 +445,7 @@ export default function ChatPage() {
   const name = user?.firstName ?? user?.username ?? null;
 
   return (
-    <div className="flex h-[calc(100vh-56px)]">
+    <div className="flex h-[calc(100vh-56px)] overflow-hidden">
       {/* サイドバー */}
       <ChatSidebar
         currentSessionId={sessionId}
@@ -480,7 +485,7 @@ export default function ChatPage() {
         </div>
 
         {/* メッセージエリア */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={messagesRef} className="flex-1 overflow-y-auto">
           {messages.length === 0 && chatPhase === "idle" ? (
             /* ウェルカム画面 */
             <div className="flex flex-col items-center justify-center h-full px-4 gap-8">
