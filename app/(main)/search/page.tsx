@@ -242,19 +242,25 @@ type TopData = {
 
 const TOP_CACHE_KEY = "navi_top_products";
 const TOP_CACHE_TTL = 1000 * 60 * 30; // 30分
+const POPULAR_CACHE_KEY = "navi_popular";
+const POPULAR_CACHE_TTL = 1000 * 60 * 60; // 1時間
+
+type DisplaySection = { keyword: string; title: string; products: Product[]; query?: string };
 
 function TopBrowse() {
   const router = useRouter();
+  const [sections, setSections] = useState<DisplaySection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
-  const [personalizedSections, setPersonalizedSections] = useState<{ keyword: string; products: Product[] }[]>([]);
   const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     if (hasFetched) return;
+    setHasFetched(true);
 
-    // 履歴タグは常に最新を取得（軽量なので）
-    const fetchHistory = fetch("/api/history", { cache: "no-store" })
+    // 履歴タグは常に最新を並列取得（軽量）
+    fetch("/api/history", { cache: "no-store" })
       .then((r) => r.json())
       .then((data: { history?: { query: string }[] }) => {
         const queries = (data.history ?? []).map((h) => h.query).filter(Boolean);
@@ -262,55 +268,97 @@ function TopBrowse() {
       })
       .catch(() => {});
 
+    // ── バックグラウンドでパーソナライズを取得して差し替え ──
+    async function loadPersonalized() {
+      setIsPersonalizing(true);
+      try {
+        // sessionStorageのパーソナライズキャッシュを確認
+        try {
+          const cached = sessionStorage.getItem(TOP_CACHE_KEY);
+          if (cached) {
+            const { data, timestamp } = JSON.parse(cached) as { data: TopData; timestamp: number };
+            if (Date.now() - timestamp < TOP_CACHE_TTL && (data.personalizedSections?.length ?? 0) > 0) {
+              setSections(data.personalizedSections.map((s) => ({
+                keyword: s.keyword, title: `「${s.keyword}」のおすすめ`, products: s.products, query: s.keyword,
+              })));
+              // キャッシュをバックグラウンドで更新（UIには反映しない）
+              fetch("/api/search/top").then((r) => r.json()).then((fresh: TopData) => {
+                sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data: fresh, timestamp: Date.now() }));
+              }).catch(() => {});
+              return;
+            }
+          }
+        } catch {}
+
+        // APIからパーソナライズ取得
+        const res = await fetch("/api/search/top");
+        const data: TopData = await res.json();
+        if ((data.personalizedSections?.length ?? 0) > 0) {
+          setSections(data.personalizedSections.map((s) => ({
+            keyword: s.keyword, title: `「${s.keyword}」のおすすめ`, products: s.products, query: s.keyword,
+          })));
+          try {
+            sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+          } catch {}
+        }
+      } catch {}
+      finally {
+        setIsPersonalizing(false);
+      }
+    }
+
+    // ── メイン: まず人気商品を即表示 ──
     async function load() {
-      // ① sessionStorageのキャッシュを確認（即座に表示）
+      // ① パーソナライズキャッシュが新鮮なら直接表示
       try {
         const cached = sessionStorage.getItem(TOP_CACHE_KEY);
         if (cached) {
           const { data, timestamp } = JSON.parse(cached) as { data: TopData; timestamp: number };
-          if (Date.now() - timestamp < TOP_CACHE_TTL) {
-            setPersonalizedSections(data.personalizedSections ?? []);
+          if (Date.now() - timestamp < TOP_CACHE_TTL && (data.personalizedSections?.length ?? 0) > 0) {
+            setSections(data.personalizedSections.map((s) => ({
+              keyword: s.keyword, title: `「${s.keyword}」のおすすめ`, products: s.products, query: s.keyword,
+            })));
             setLoading(false);
-            setHasFetched(true);
-            // バックグラウンドで履歴取得とキャッシュ更新
-            fetchHistory;
-            fetch("/api/search/top")
-              .then((r) => r.json())
-              .then((fresh: TopData) => {
-                sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data: fresh, timestamp: Date.now() }));
-              })
-              .catch(() => {});
+            loadPersonalized(); // バックグラウンドでキャッシュ更新のみ
             return;
           }
         }
       } catch {}
 
-      // ② キャッシュなし → APIを叩く
-      setLoading(true);
+      // ② 人気商品をsessionStorageまたはAPIから即表示
       try {
-        const [, topData] = await Promise.all([
-          fetchHistory,
-          fetch("/api/search/top").then((r) => r.json() as Promise<TopData>),
-        ]);
-        setPersonalizedSections(topData.personalizedSections ?? []);
+        const popularCached = sessionStorage.getItem(POPULAR_CACHE_KEY);
+        if (popularCached) {
+          const { data, timestamp } = JSON.parse(popularCached) as { data: { products: Product[]; title: string }; timestamp: number };
+          if (Date.now() - timestamp < POPULAR_CACHE_TTL) {
+            setSections([{ keyword: "_popular", title: data.title, products: data.products }]);
+            setLoading(false);
+            loadPersonalized();
+            return;
+          }
+        }
+      } catch {}
+
+      // ③ 人気商品APIを叩く（~300ms）
+      try {
+        const res = await fetch("/api/search/popular");
+        const popular = await res.json() as { products: Product[]; title: string };
+        setSections([{ keyword: "_popular", title: popular.title, products: popular.products ?? [] }]);
         try {
-          sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data: topData, timestamp: Date.now() }));
+          sessionStorage.setItem(POPULAR_CACHE_KEY, JSON.stringify({ data: popular, timestamp: Date.now() }));
         } catch {}
-      } catch {
-        // エラーは無視
-      } finally {
-        setLoading(false);
-        setHasFetched(true);
-      }
+      } catch {}
+      setLoading(false);
+      loadPersonalized();
     }
 
     load();
-  }, []); // 空配列で初回のみ実行
-
-  const isPersonalized = personalizedSections.length > 0;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-3 pb-10 bg-[#f3f4f6]">
+      <style>{`@keyframes navi-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
+
       {/* カテゴリアイコン */}
       <div className="bg-white px-4 py-4">
         <div className="overflow-x-auto" style={scrollHide}>
@@ -324,12 +372,7 @@ function TopBrowse() {
               >
                 <div
                   className="flex items-center justify-center rounded-full text-2xl"
-                  style={{
-                    width: "52px",
-                    height: "52px",
-                    background: "var(--color-bg)",
-                    border: "1px solid var(--color-border)",
-                  }}
+                  style={{ width: "52px", height: "52px", background: "var(--color-bg)", border: "1px solid var(--color-border)" }}
                 >
                   {cat.emoji}
                 </div>
@@ -361,23 +404,33 @@ function TopBrowse() {
         </div>
       )}
 
-      {/* 直近の検索キーワード別おすすめ */}
+      {/* おすすめセクション（2段階ロード） */}
       {loading ? (
         <>
-          {[...Array(3)].map((_, i) => (
-            <HScrollSection key={i} title="読み込み中..." products={[]} loading={true} />
+          {[...Array(2)].map((_, i) => (
+            <HScrollSection key={i} title="人気の商品" products={[]} loading={true} />
           ))}
         </>
-      ) : isPersonalized && personalizedSections.length > 0 ? (
-        personalizedSections.map((section) => (
-          <HScrollSection
-            key={section.keyword}
-            title={`「${section.keyword}」のおすすめ`}
-            query={section.keyword}
-            products={section.products}
-            loading={false}
-          />
-        ))
+      ) : sections.length > 0 ? (
+        <>
+          {isPersonalizing && (
+            <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 16px 4px" }}>
+              <span style={{ fontSize: "11px", color: "#aaa", display: "flex", alignItems: "center", gap: "5px" }}>
+                <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-accent)", animation: "navi-pulse 1s infinite" }} />
+                最適化中...
+              </span>
+            </div>
+          )}
+          {sections.map((section) => (
+            <HScrollSection
+              key={section.keyword}
+              title={section.title}
+              query={section.query ?? ""}
+              products={section.products}
+              loading={false}
+            />
+          ))}
+        </>
       ) : (
         <div className="mx-4 mt-8 text-center">
           <p className="text-gray-400 text-sm mb-1">まだ検索履歴がありません</p>
