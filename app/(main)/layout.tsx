@@ -9,7 +9,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <UserSync />
       <TopNav />
       <main
-        className="pt-14 md:pt-0"
+        className="pt-14"
         style={{
           background: "var(--color-bg)",
           paddingBottom: "calc(var(--nav-bottom-h) + env(safe-area-inset-bottom))",

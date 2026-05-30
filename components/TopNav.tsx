@@ -39,7 +39,6 @@ function TopNavInner() {
 
   return (
     <header
-      className="flex md:hidden"
       style={{
         position: "fixed",
         top: 0,
@@ -49,6 +48,7 @@ function TopNavInner() {
         background: "white",
         borderBottom: "1px solid var(--color-border)",
         height: "56px",
+        display: "flex",
         alignItems: "center",
         padding: "0 12px",
         gap: "4px",
