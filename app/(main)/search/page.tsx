@@ -247,18 +247,23 @@ const POPULAR_CACHE_TTL = 1000 * 60 * 60; // 1時間
 
 type DisplaySection = { keyword: string; title: string; products: Product[]; query?: string };
 
+function toDisplaySections(sections: { keyword: string; products: Product[] }[]): DisplaySection[] {
+  return sections.map((s) => ({
+    keyword: s.keyword,
+    title: `「${s.keyword}」のおすすめ`,
+    products: s.products,
+    query: s.keyword,
+  }));
+}
+
 function TopBrowse() {
   const router = useRouter();
   const [sections, setSections] = useState<DisplaySection[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
-  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
-    if (hasFetched) return;
-    setHasFetched(true);
-
     // 履歴タグは常に最新を並列取得（軽量）
     fetch("/api/history", { cache: "no-store" })
       .then((r) => r.json())
@@ -268,88 +273,94 @@ function TopBrowse() {
       })
       .catch(() => {});
 
-    // ── バックグラウンドでパーソナライズを取得して差し替え ──
-    async function loadPersonalized() {
-      setIsPersonalizing(true);
-      try {
-        // sessionStorageのパーソナライズキャッシュを確認
-        try {
-          const cached = sessionStorage.getItem(TOP_CACHE_KEY);
-          if (cached) {
-            const { data, timestamp } = JSON.parse(cached) as { data: TopData; timestamp: number };
-            if (Date.now() - timestamp < TOP_CACHE_TTL && (data.personalizedSections?.length ?? 0) > 0) {
-              setSections(data.personalizedSections.map((s) => ({
-                keyword: s.keyword, title: `「${s.keyword}」のおすすめ`, products: s.products, query: s.keyword,
-              })));
-              // キャッシュをバックグラウンドで更新（UIには反映しない）
-              fetch("/api/search/top").then((r) => r.json()).then((fresh: TopData) => {
-                sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data: fresh, timestamp: Date.now() }));
-              }).catch(() => {});
-              return;
-            }
-          }
-        } catch {}
-
-        // APIからパーソナライズ取得
-        const res = await fetch("/api/search/top");
-        const data: TopData = await res.json();
-        if ((data.personalizedSections?.length ?? 0) > 0) {
-          setSections(data.personalizedSections.map((s) => ({
-            keyword: s.keyword, title: `「${s.keyword}」のおすすめ`, products: s.products, query: s.keyword,
-          })));
-          try {
-            sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-          } catch {}
-        }
-      } catch {}
-      finally {
-        setIsPersonalizing(false);
-      }
-    }
-
-    // ── メイン: まず人気商品を即表示 ──
     async function load() {
-      // ① パーソナライズキャッシュが新鮮なら直接表示
+      // ─── Stage 1: 人気商品を即表示 ───────────────────────────
+
+      let popularShown = false;
+
+      // ① パーソナライズキャッシュが新鮮なら直接表示（Stageスキップ）
       try {
         const cached = sessionStorage.getItem(TOP_CACHE_KEY);
         if (cached) {
           const { data, timestamp } = JSON.parse(cached) as { data: TopData; timestamp: number };
           if (Date.now() - timestamp < TOP_CACHE_TTL && (data.personalizedSections?.length ?? 0) > 0) {
-            setSections(data.personalizedSections.map((s) => ({
-              keyword: s.keyword, title: `「${s.keyword}」のおすすめ`, products: s.products, query: s.keyword,
-            })));
+            setSections(toDisplaySections(data.personalizedSections));
             setLoading(false);
-            loadPersonalized(); // バックグラウンドでキャッシュ更新のみ
-            return;
+            popularShown = true; // 人気商品スキップ（パーソナライズ済み表示）
+            // Stage 2でバックグラウンドキャッシュ更新のみ行う
           }
         }
       } catch {}
 
-      // ② 人気商品をsessionStorageまたはAPIから即表示
-      try {
-        const popularCached = sessionStorage.getItem(POPULAR_CACHE_KEY);
-        if (popularCached) {
-          const { data, timestamp } = JSON.parse(popularCached) as { data: { products: Product[]; title: string }; timestamp: number };
-          if (Date.now() - timestamp < POPULAR_CACHE_TTL) {
-            setSections([{ keyword: "_popular", title: data.title, products: data.products }]);
-            setLoading(false);
-            loadPersonalized();
-            return;
-          }
-        }
-      } catch {}
-
-      // ③ 人気商品APIを叩く（~300ms）
-      try {
-        const res = await fetch("/api/search/popular");
-        const popular = await res.json() as { products: Product[]; title: string };
-        setSections([{ keyword: "_popular", title: popular.title, products: popular.products ?? [] }]);
+      // ② 人気商品をsessionStorage or APIから取得
+      if (!popularShown) {
         try {
-          sessionStorage.setItem(POPULAR_CACHE_KEY, JSON.stringify({ data: popular, timestamp: Date.now() }));
+          const cachedPop = sessionStorage.getItem(POPULAR_CACHE_KEY);
+          if (cachedPop) {
+            const { data, timestamp } = JSON.parse(cachedPop) as { data: { products: Product[]; title: string }; timestamp: number };
+            if (Date.now() - timestamp < POPULAR_CACHE_TTL) {
+              setSections([{ keyword: "_popular", title: data.title, products: data.products }]);
+              setLoading(false);
+              popularShown = true;
+            }
+          }
         } catch {}
+
+        if (!popularShown) {
+          try {
+            const res = await fetch("/api/search/popular");
+            const pop = await res.json() as { products: Product[]; title: string };
+            setSections([{ keyword: "_popular", title: pop.title, products: pop.products ?? [] }]);
+            try { sessionStorage.setItem(POPULAR_CACHE_KEY, JSON.stringify({ data: pop, timestamp: Date.now() })); } catch {}
+          } catch {}
+          setLoading(false);
+        }
+      }
+
+      // ─── Stage 2: パーソナライズ（awaitして確実に実行） ────────
+
+      setIsPersonalizing(true);
+      try {
+        let personalizedSections: { keyword: string; products: Product[] }[] | null = null;
+        let needsFetch = true;
+
+        // sessionStorageキャッシュを確認
+        try {
+          const cached = sessionStorage.getItem(TOP_CACHE_KEY);
+          if (cached) {
+            const { data, timestamp } = JSON.parse(cached) as { data: TopData; timestamp: number };
+            if (Date.now() - timestamp < TOP_CACHE_TTL && (data.personalizedSections?.length ?? 0) > 0) {
+              personalizedSections = data.personalizedSections;
+              needsFetch = false;
+              // バックグラウンドでキャッシュを静かに更新（UIは更新しない）
+              fetch("/api/search/top")
+                .then((r) => r.json())
+                .then((fresh: TopData) => {
+                  sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data: fresh, timestamp: Date.now() }));
+                })
+                .catch(() => {});
+            }
+          }
+        } catch {}
+
+        // キャッシュなし or 期限切れ → APIから取得
+        if (needsFetch) {
+          const res = await fetch("/api/search/top");
+          const data: TopData = await res.json();
+          if ((data.personalizedSections?.length ?? 0) > 0) {
+            personalizedSections = data.personalizedSections;
+            try {
+              sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+            } catch {}
+          }
+        }
+
+        // パーソナライズデータがあれば差し替え
+        if (personalizedSections && personalizedSections.length > 0) {
+          setSections(toDisplaySections(personalizedSections));
+        }
       } catch {}
-      setLoading(false);
-      loadPersonalized();
+      setIsPersonalizing(false);
     }
 
     load();
