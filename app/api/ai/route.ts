@@ -82,24 +82,34 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `
 あなたはNaviというAIショッピングアシスタントです。
 
-## 絶対に守るルール
+## 質問の流れ（最大6回）
 
-### 会話の継続性（最重要）
-- 会話履歴を必ず参照して前の会話の流れを引き継ぐ
-- ユーザーが言った条件は会話が終わるまで全て記憶する
-- 「メンズ用」と言ったら以降は全てメンズ商品を提案する
-- 「3万円以内」と言ったら以降は3万円以内で探し続ける
-- 絶対に前の条件を忘れない
+Q1: 予算
+Q2: 使用シーン・用途
+Q3: 重視する機能（最重要）
+Q4: ブランドのこだわり
+Q5: 使う人（自分・家族・プレゼント等）
+Q6: 他に気になる条件はあるか
+
+## 各質問のルール
+- 前の回答を必ず活かして次の質問をする
+- 既に答えた内容は絶対に聞かない
+- 商品カテゴリに応じて質問内容を変える
+  例：イヤホンなら「有線/ワイヤレス」を聞く
+      家電なら「設置場所」を聞く
+      服なら「サイズ感」を聞く
+- 質問は1つずつ・選択肢付きで
+
+## 絶対に守るルール
+- 会話履歴を全て参照する
+- 条件は会話が終わるまで保持する
+- 「メンズ」と言ったら以降ずっとメンズ
+- 最後まで必ず商品を表示する
+- 商品が見つからなくても「条件を広げて探しました」と伝えて必ず商品を返す
 
 ### 現在の蓄積条件
 ${JSON.stringify(searchConditions)}
 元のキーワード：${originalKeyword || "未設定"}
-
-### 接客スタイル
-- 友達のような親しみやすいトーン
-- オウム返し禁止
-- 質問は1つずつ
-- 前の回答を必ず活かして次の質問をする
 
 ## 選択肢の形式
 質問とともに、必ず以下の形式で選択肢を含めてください：
@@ -253,28 +263,43 @@ ${JSON.stringify(searchConditions)}
 
     console.log("最終検索キーワード:", searchKeyword)
 
-    // ③ 商品検索（キャッシュ付き・フォールバック付き）
-    const cacheKey = `search:${searchKeyword}:${extractedConditions.minPrice ?? ""}:${extractedConditions.maxPrice ?? ""}`
-    let products = await withCache(
-      cacheKey,
-      () => searchMixed(
+    // ③ 商品検索（4段階フォールバック）
+    const searchWithFallback = async (): Promise<Product[]> => {
+      // ① 全条件で検索
+      let products = await searchMixed(
         {
           keyword: searchKeyword,
           minPrice: extractedConditions.minPrice,
           maxPrice: extractedConditions.maxPrice,
         },
         30
-      ),
-      3600
-    )
-
-    if (products.length === 0) {
-      products = await withCache(
-        `search:${originalKeyword || searchKeyword}::`,
-        () => searchMixed({ keyword: originalKeyword || searchKeyword }, 30),
-        3600
       )
+      if (products.length > 0) return products
+
+      console.log("①失敗 → 価格条件を外す")
+      // ② 価格条件を外して再検索
+      products = await searchMixed({ keyword: searchKeyword }, 30)
+      if (products.length > 0) return products
+
+      console.log("②失敗 → キーワードを短縮")
+      // ③ キーワードを最初の単語だけにする
+      const shortKeyword = searchKeyword.split(/\s+/)[0]
+      products = await searchMixed({ keyword: shortKeyword }, 30)
+      if (products.length > 0) return products
+
+      console.log("③失敗 → 元キーワードで検索")
+      // ④ 最終手段：元のキーワードのみ
+      return await searchMixed({ keyword: originalKeyword || shortKeyword }, 30)
     }
+
+    const products = await searchWithFallback()
+
+    // 価格条件を緩めた場合の注記
+    const relaxedMessage =
+      extractedConditions.maxPrice != null &&
+      products.some((p) => p.price > extractedConditions.maxPrice)
+        ? `\n※ご指定の予算内では見つからなかったため、条件を少し広げて表示しています。`
+        : ""
 
     // 会話から学んだ内容をバックグラウンドで保存（fire-and-forget）
     if (products.length > 0) {
@@ -307,7 +332,9 @@ ${JSON.stringify(searchConditions)}
     }
 
     return Response.json({
-      message: claudeReplyMessage || `${products.length}件見つかりました！`,
+      message:
+        claudeReplyMessage ||
+        `「${originalKeyword}」の商品を${products.length}件見つけました！${relaxedMessage}`,
       products,
       followUp: nextQuestion,
       newConditions: extractedConditions,

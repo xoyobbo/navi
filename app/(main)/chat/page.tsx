@@ -8,6 +8,8 @@ import ChatSidebar from "@/components/ChatSidebar";
 import type { Product } from "@/types/product";
 import type { PriceRange } from "@/lib/category-price-ranges";
 
+const MAX_QUESTIONS = 6
+
 const SUGGESTED_PROMPTS = [
   "イヤホンが欲しい",
   "コスパの良いスマートウォッチ",
@@ -90,7 +92,14 @@ function applyConditionAnswer(
   } else if (step === 1) {
     updated.useCase = answer;
   } else if (step === 2) {
-    updated.features = [answer];
+    if (answer !== "こだわらない" && answer !== "特に決めていない") {
+      updated.features = [answer];
+    }
+  } else if (step === 3 || step === 4) {
+    // Q4: ブランド / Q5: 使う人 → other に蓄積
+    if (answer !== "こだわらない" && answer !== "特に決めていない") {
+      updated.other = updated.other ? `${updated.other} ${answer}` : answer;
+    }
   }
   return updated;
 }
@@ -387,7 +396,7 @@ export default function ChatPage() {
         addMsg("assistant", resultMsg);
         saveMsg("assistant", resultMsg, balanced);
       } else {
-        addMsg("assistant", "条件に合う商品が見つかりませんでした。条件を変えてもう一度お試しください。");
+        addMsg("assistant", "申し訳ありません、商品を取得できませんでした。もう一度お試しください。");
         doResetFlow();
       }
     } catch {
@@ -470,7 +479,7 @@ export default function ChatPage() {
           setCurrentOptions(options);
           saveMsg("assistant", naviMsg);
 
-          if (nextStep >= 3) {
+          if (nextStep >= MAX_QUESTIONS - 1) {
             setChatPhase("finalizing");
           }
           break;
