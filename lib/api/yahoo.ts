@@ -1,4 +1,5 @@
 import type { Product } from "@/types/product";
+import { calcTrustLevel } from "@/lib/scoring";
 
 interface YahooSearchParams {
   keyword: string;
@@ -36,6 +37,8 @@ export async function searchYahoo(params: YahooSearchParams): Promise<Product[]>
       const hitReview = hit.review as Record<string, number> | undefined;
       const image = hitImage?.large || hitImage?.medium || hitImage?.small || "/images/no-image.png";
       const url = String(hit.url ?? "");
+      const rating = Number(hitReview?.rate ?? 0);
+      const reviewCount = Number(hitReview?.count ?? 0);
       return {
         id: `yahoo_${hit.code}`,
         source: "yahoo",
@@ -45,11 +48,12 @@ export async function searchYahoo(params: YahooSearchParams): Promise<Product[]>
         images: [hitImage?.large, hitImage?.medium].filter((u): u is string => Boolean(u)),
         affiliateUrl: url,
         purchaseLinks: { yahoo: url },
-        rating: Number(hitReview?.rate ?? 0),
-        reviewCount: Number(hitReview?.count ?? 0),
+        rating,
+        reviewCount,
         features: [],
         category: "",
         availability: true,
+        trustLevel: calcTrustLevel(rating, reviewCount),
       };
     });
   } catch (e) {

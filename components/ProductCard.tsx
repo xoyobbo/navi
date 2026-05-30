@@ -116,6 +116,7 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
     <>
     <div
       className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col cursor-pointer"
+      style={{ opacity: product.trustLevel === "low" ? 0.85 : 1 }}
       onClick={handleCardAreaClick}
     >
       {/* 画像: 幅100%・高さ200px固定・object-cover */}

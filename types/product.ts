@@ -23,6 +23,7 @@ export type Product = {
   scoreDetails?: ScoreDetails;
   scoreReason?: string;
   reason?: string;
+  trustLevel?: "high" | "medium" | "low";
   purchaseLinks?: {
     rakuten?: string;
     yahoo?: string;

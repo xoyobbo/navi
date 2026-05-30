@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Product } from "@/types/product";
 import { normalizeKeyword } from "@/lib/search-utils";
 import { validateKeyword, validatePrice } from "@/lib/validation";
+import { calcTrustLevel } from "@/lib/scoring";
 
 export const maxDuration = 15
 
@@ -65,6 +66,8 @@ function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
     .slice(0, 5);
 
   const affiliateUrl = item.affiliateUrl || item.itemUrl;
+  const rating = item.reviewAverage ?? 0;
+  const reviewCount = item.reviewCount ?? 0;
   return {
     id: `rakuten_${item.itemCode}`,
     source: "rakuten",
@@ -73,12 +76,13 @@ function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
     image,
     images,
     affiliateUrl,
-    rating: item.reviewAverage ?? 0,
-    reviewCount: item.reviewCount ?? 0,
+    rating,
+    reviewCount,
     features,
     category: String(item.genreId ?? ""),
     availability: item.availability === 1,
     purchaseLinks: { rakuten: affiliateUrl },
+    trustLevel: calcTrustLevel(rating, reviewCount),
   };
 }
 
@@ -157,6 +161,15 @@ export async function GET(req: NextRequest) {
       });
       if (filtered.length > 0) products = filtered;
     }
+
+    // high → medium → low の順に並べる
+    const trustOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    products = [...products].sort((a, b) => {
+      const ta = trustOrder[a.trustLevel ?? "medium"];
+      const tb = trustOrder[b.trustLevel ?? "medium"];
+      if (ta !== tb) return ta - tb;
+      return b.reviewCount - a.reviewCount;
+    });
 
     const total = data.count ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / HITS));

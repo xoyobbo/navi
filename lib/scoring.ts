@@ -1,5 +1,24 @@
 import type { Product } from "@/types/product";
 
+export const calcTrustLevel = (
+  rating: number,
+  reviewCount: number
+): "high" | "medium" | "low" => {
+  // ステマ疑惑（評価高すぎ×大量レビュー）
+  if (rating >= 4.9 && reviewCount > 500) {
+    return "low";
+  }
+  // 高信頼：評価4.0以上×レビュー100件以上
+  if (rating >= 4.0 && reviewCount >= 100) {
+    return "high";
+  }
+  // 低信頼：評価3.5未満またはレビュー10件未満
+  if (rating < 3.5 || reviewCount < 10) {
+    return "low";
+  }
+  return "medium";
+};
+
 function calcPriceScore(price: number, prices: number[]): number {
   if (prices.length === 0) return 15;
   const min = Math.min(...prices);

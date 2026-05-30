@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState, startTransition } 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
+import FeaturedProductCard from "@/components/FeaturedProductCard";
 import Pagination from "@/components/Pagination";
 import { extractBrands } from "@/lib/brand-extractor";
 import type { Product } from "@/types/product";
@@ -519,11 +520,32 @@ function SearchResults({
           <GridSkeleton count={8} />
         ) : products.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {products.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
+            {/* 信頼度でグループ分け */}
+            {(() => {
+              const highTrust = products.filter((p) => p.trustLevel === "high");
+              const others = products.filter((p) => p.trustLevel !== "high");
+              return (
+                <div>
+                  {/* 上位2件：フィーチャー表示 */}
+                  {highTrust.slice(0, 2).map((p) => (
+                    <FeaturedProductCard key={p.id} product={p} />
+                  ))}
+                  {/* 残り：通常グリッド */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: "12px",
+                      marginTop: highTrust.length > 0 ? "0" : "0",
+                    }}
+                  >
+                    {[...highTrust.slice(2), ...others].map((p) => (
+                      <ProductCard key={p.id} product={p} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ページネーション */}
             <div className="mt-6">

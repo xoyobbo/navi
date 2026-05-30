@@ -1,5 +1,5 @@
 import type { Product, SearchParams, SearchResult, SortOrder } from "@/types/product";
-import { scoreProducts } from "@/lib/scoring";
+import { scoreProducts, calcTrustLevel } from "@/lib/scoring";
 
 type ProductSource = "rakuten" | "yahoo" | "amazon";
 
@@ -214,8 +214,22 @@ export async function searchProducts(params: SearchParams): Promise<SearchResult
   });
 
   const unique = deduplicateByName(priceFiltered);
-  const scored = scoreProducts(unique);
-  const sorted = sortProducts(scored, sort);
+  // trustLevel を付与
+  const withTrust = unique.map((p) => ({
+    ...p,
+    trustLevel: p.trustLevel ?? calcTrustLevel(p.rating, p.reviewCount),
+  }));
+  const scored = scoreProducts(withTrust);
+
+  // high → medium → low の順に並べてから sort
+  const trustOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const trustSorted = [...scored].sort((a, b) => {
+    const ta = trustOrder[a.trustLevel ?? "medium"];
+    const tb = trustOrder[b.trustLevel ?? "medium"];
+    if (ta !== tb) return ta - tb;
+    return b.reviewCount - a.reviewCount;
+  });
+  const sorted = sortProducts(trustSorted, sort);
 
   return {
     products: sorted,

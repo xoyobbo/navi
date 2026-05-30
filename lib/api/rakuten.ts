@@ -1,5 +1,6 @@
 import type { Product } from "@/types/product";
 import { normalizeKeyword } from "@/lib/search-utils";
+import { calcTrustLevel } from "@/lib/scoring";
 
 const validateProduct = (product: Partial<Product>): product is Product =>
   typeof product.id === "string" &&
@@ -64,6 +65,8 @@ function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
     .slice(0, 5);
 
   const affiliateUrl = item.affiliateUrl || item.itemUrl;
+  const rating = item.reviewAverage ?? 0;
+  const reviewCount = item.reviewCount ?? 0;
   return {
     id: `rakuten_${item.itemCode}`,
     source: "rakuten",
@@ -73,11 +76,12 @@ function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
     images,
     affiliateUrl,
     purchaseLinks: { rakuten: affiliateUrl },
-    rating: item.reviewAverage ?? 0,
-    reviewCount: item.reviewCount ?? 0,
+    rating,
+    reviewCount,
     features,
     category: String(item.genreId ?? ""),
     availability: item.availability === 1,
+    trustLevel: calcTrustLevel(rating, reviewCount),
   };
 }
 
