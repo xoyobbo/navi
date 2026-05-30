@@ -180,6 +180,16 @@ export default function ChatPage() {
     }, 50);
   }
 
+  function adjustHeight() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const lineHeight = 24;
+    const padding = 20;
+    const maxLines = 4;
+    el.style.height = `${Math.min(el.scrollHeight, lineHeight * maxLines + padding)}px`;
+  }
+
   function addMsg(role: "user" | "assistant", content: string) {
     setMessages((prev) => [...prev, { role, content }]);
   }
@@ -430,7 +440,7 @@ export default function ChatPage() {
 
     setMessages(updatedMessages);
     setInput("");
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    if (textareaRef.current) textareaRef.current.style.height = "44px";
     setLoading(true);
     setCurrentOptions([]);
     scrollToBottom();
@@ -711,19 +721,18 @@ export default function ChatPage() {
         {/* 入力バー */}
         <div className="border-t border-gray-100 bg-white px-4 py-3 flex-shrink-0">
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 transition">
+            <div className="flex items-end gap-3">
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);
-                  e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+                  setTimeout(adjustHeight, 0);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                     e.preventDefault();
-                    handleSubmit();
+                    if (input.trim() && !loading) handleSubmit();
                   }
                 }}
                 placeholder={
@@ -736,14 +745,26 @@ export default function ChatPage() {
                     : "商品名やカテゴリを入力…"
                 }
                 rows={1}
-                className="flex-1 bg-transparent text-gray-800 placeholder-gray-400 outline-none resize-none"
                 style={{
+                  flex: 1,
+                  height: "44px",
+                  minHeight: "44px",
+                  maxHeight: "116px",
+                  padding: "10px 16px",
+                  border: "1.5px solid var(--color-border)",
+                  borderRadius: "24px",
                   fontSize: "16px",
-                  lineHeight: "1.5",
-                  minHeight: "24px",
-                  maxHeight: "160px",
+                  lineHeight: "24px",
+                  resize: "none",
+                  outline: "none",
                   overflowY: "auto",
+                  background: "var(--color-bg)",
+                  fontFamily: "inherit",
+                  display: "block",
+                  width: "100%",
+                  boxSizing: "border-box",
                   transition: "height 0.1s ease",
+                  color: "var(--color-text)",
                 }}
               />
               <button
