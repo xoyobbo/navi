@@ -21,6 +21,12 @@ type HistoryItem = {
   created_at: string;
 };
 
+const SOURCES = [
+  { id: "rakuten", name: "楽天市場",          icon: "🛒", color: "#BF0000", available: true },
+  { id: "yahoo",   name: "Yahoo!ショッピング", icon: "🛍️", color: "#FF0033", available: true },
+  { id: "amazon",  name: "Amazon",            icon: "📦", color: "#FF9900", available: false },
+];
+
 const SOURCE_BADGE: Record<string, { label: string; color: string }> = {
   rakuten: { label: "楽天", color: "bg-red-50 text-red-600" },
   yahoo: { label: "Yahoo!", color: "bg-purple-50 text-purple-600" },
@@ -78,7 +84,49 @@ export default function SettingsPage() {
   const [showFav, setShowFav] = useState(false);
   const [showHist, setShowHist] = useState(false);
 
+  const [ranking, setRanking] = useState<string[]>(["rakuten", "yahoo"]);
+  const [savingPrefs, setSavingPrefs] = useState(false);
+  const [savedPrefs, setSavedPrefs] = useState(false);
+
+  const handleSourceSelect = (id: string) => {
+    if (ranking.includes(id)) {
+      setRanking((prev) => prev.filter((r) => r !== id));
+    } else {
+      setRanking((prev) => [...prev, id]);
+    }
+  };
+
+  const getSourceRank = (id: string) => {
+    const index = ranking.indexOf(id);
+    return index === -1 ? null : index + 1;
+  };
+
+  const handleSavePrefs = async () => {
+    setSavingPrefs(true);
+    try {
+      await fetch("/api/user/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferredSources: ranking }),
+      });
+      setSavedPrefs(true);
+      setTimeout(() => setSavedPrefs(false), 2000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
   useEffect(() => {
+    fetch("/api/user/preferences")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.preferredSources) && d.preferredSources.length > 0) {
+          setRanking(d.preferredSources);
+        }
+      })
+      .catch(() => {});
     fetch("/api/favorites")
       .then((r) => r.json())
       .then((d) => setFavorites(d.favorites ?? []))
@@ -118,6 +166,68 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+
+      {/* ショッピングサイト設定 */}
+      <Section title="ショッピングサイト設定">
+        <div className="px-4 pt-3 pb-1">
+          <p className="text-xs text-gray-400 mb-3">タップした順番が優先順位になります</p>
+          <div className="flex flex-col gap-2 mb-3">
+            {SOURCES.map((source) => {
+              const rank = getSourceRank(source.id);
+              const isSelected = rank !== null;
+              return (
+                <button
+                  key={source.id}
+                  onClick={() => source.available && handleSourceSelect(source.id)}
+                  disabled={!source.available}
+                  className="flex items-center gap-3 rounded-xl p-3 text-left transition"
+                  style={{
+                    background: isSelected ? "white" : "#f5f5f5",
+                    border: isSelected ? `2px solid ${source.color}` : "2px solid transparent",
+                    cursor: source.available ? "pointer" : "not-allowed",
+                    opacity: source.available ? 1 : 0.5,
+                    boxShadow: isSelected ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-center text-white text-sm font-bold shrink-0"
+                    style={{
+                      width: "28px",
+                      height: "28px",
+                      borderRadius: "50%",
+                      background: isSelected ? source.color : "#e8e8e4",
+                    }}
+                  >
+                    {isSelected ? rank : ""}
+                  </div>
+                  <span className="text-xl">{source.icon}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-800">{source.name}</p>
+                    {!source.available && (
+                      <p className="text-[11px] font-medium" style={{ color: "#FF9900" }}>準備中</p>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <span className="text-lg" style={{ color: source.color }}>✓</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={handleSavePrefs}
+            disabled={savingPrefs || ranking.length === 0}
+            className="w-full py-3 text-sm font-semibold rounded-xl transition mb-3"
+            style={{
+              background: savedPrefs ? "#22c55e" : ranking.length > 0 ? "#1a1a1a" : "#e8e8e4",
+              color: "white",
+              cursor: ranking.length > 0 && !savingPrefs ? "pointer" : "not-allowed",
+            }}
+          >
+            {savedPrefs ? "保存しました ✓" : savingPrefs ? "保存中..." : "保存する"}
+          </button>
+        </div>
+      </Section>
 
       {/* お気に入り */}
       <Section title="お気に入り">

@@ -22,38 +22,61 @@ export function deduplicateProducts(products: Product[]): Product[] {
   });
 }
 
-export async function searchMixed(params: MixSearchParams, total = 30): Promise<Product[]> {
+export async function searchMixed(
+  params: MixSearchParams,
+  total = 30,
+  preferredSources = ["rakuten", "yahoo"]
+): Promise<Product[]> {
   try {
-    const [rakuten, yahoo] = await Promise.allSettled([
-      searchRakuten({ ...params, hits: 30 }),
-      searchYahoo({ ...params, hits: 15 }),
-    ])
+    // 優先順位に基づいて取得件数の比率を決定
+    const rakutenRatio =
+      preferredSources[0] === "rakuten"
+        ? 0.8
+        : preferredSources.includes("rakuten")
+        ? 0.3
+        : 0;
 
-    const rakutenProducts = rakuten.status === "fulfilled" ? rakuten.value : []
-    const yahooProducts   = yahoo.status  === "fulfilled" ? yahoo.value  : []
+    const yahooRatio =
+      preferredSources[0] === "yahoo"
+        ? 0.8
+        : preferredSources.includes("yahoo")
+        ? 0.3
+        : 0;
 
-    console.log("楽天:", rakuten.status, rakutenProducts.length, "件")
-    console.log("Yahoo!:", yahoo.status, yahooProducts.length, "件")
+    const rakutenHits = Math.floor(total * rakutenRatio) || 0;
+    const yahooHits = Math.floor(total * yahooRatio) || 0;
 
-    if (rakutenProducts.length === 0 && yahooProducts.length === 0) {
-      console.error("全APIが失敗しました")
-      return []
+    const fetchTasks: Promise<Product[]>[] = [];
+
+    if (rakutenHits > 0) {
+      fetchTasks.push(searchRakuten({ ...params, hits: rakutenHits }));
+    }
+    if (yahooHits > 0) {
+      fetchTasks.push(searchYahoo({ ...params, hits: yahooHits }));
     }
 
-    const mixed: Product[] = []
-    let ri = 0
-    let yi = 0
-
-    while (mixed.length < total && (ri < rakutenProducts.length || yi < yahooProducts.length)) {
-      for (let i = 0; i < 2; i++) {
-        if (ri < rakutenProducts.length && mixed.length < total) mixed.push(rakutenProducts[ri++])
-      }
-      if (yi < yahooProducts.length && mixed.length < total) mixed.push(yahooProducts[yi++])
+    // 両方0になる場合はデフォルトにフォールバック
+    if (fetchTasks.length === 0) {
+      fetchTasks.push(searchRakuten({ ...params, hits: Math.floor(total * 0.8) }));
+      fetchTasks.push(searchYahoo({ ...params, hits: Math.floor(total * 0.3) }));
     }
 
-    return deduplicateProducts(mixed)
+    const results = await Promise.allSettled(fetchTasks);
+
+    const allProducts = results
+      .filter((r) => r.status === "fulfilled")
+      .flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+
+    console.log("searchMixed:", allProducts.length, "件", "preferredSources:", preferredSources);
+
+    if (allProducts.length === 0) {
+      console.error("全APIが失敗しました");
+      return [];
+    }
+
+    return deduplicateProducts(allProducts);
   } catch (e) {
-    console.error("searchMixedエラー:", e)
-    return []
+    console.error("searchMixedエラー:", e);
+    return [];
   }
 }

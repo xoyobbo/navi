@@ -199,6 +199,23 @@ ${JSON.stringify(searchConditions)}
   if (isFinal) {
     if (!message?.trim()) return Response.json({ products: [], message: "キーワードがありません" });
 
+    // ユーザーのショッピングサイト設定を取得
+    let preferredSources = ["rakuten", "yahoo"];
+    try {
+      const prefsRes = await fetch(
+        `${process.env.NEXT_PUBLIC_SITE_URL}/api/user/preferences`,
+        { headers: { cookie: req.headers.get("cookie") ?? "" } }
+      );
+      if (prefsRes.ok) {
+        const prefsData = await prefsRes.json();
+        if (Array.isArray(prefsData.preferredSources) && prefsData.preferredSources.length > 0) {
+          preferredSources = prefsData.preferredSources;
+        }
+      }
+    } catch {
+      // 設定取得失敗はデフォルト値を使用
+    }
+
     // ① 会話履歴から条件・返答・次の質問を1回のClaudeで取得
     const conversationText = (conversationHistory || [])
       .map((m: ConversationMessage) =>
@@ -272,24 +289,25 @@ ${JSON.stringify(searchConditions)}
           minPrice: extractedConditions.minPrice,
           maxPrice: extractedConditions.maxPrice,
         },
-        30
+        30,
+        preferredSources
       )
       if (products.length > 0) return products
 
       console.log("①失敗 → 価格条件を外す")
       // ② 価格条件を外して再検索
-      products = await searchMixed({ keyword: searchKeyword }, 30)
+      products = await searchMixed({ keyword: searchKeyword }, 30, preferredSources)
       if (products.length > 0) return products
 
       console.log("②失敗 → キーワードを短縮")
       // ③ キーワードを最初の単語だけにする
       const shortKeyword = searchKeyword.split(/\s+/)[0]
-      products = await searchMixed({ keyword: shortKeyword }, 30)
+      products = await searchMixed({ keyword: shortKeyword }, 30, preferredSources)
       if (products.length > 0) return products
 
       console.log("③失敗 → 元キーワードで検索")
       // ④ 最終手段：元のキーワードのみ
-      return await searchMixed({ keyword: originalKeyword || shortKeyword }, 30)
+      return await searchMixed({ keyword: originalKeyword || shortKeyword }, 30, preferredSources)
     }
 
     // 口コミ数・評価でソートして信頼性の高い商品を上位に
