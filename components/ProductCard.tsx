@@ -209,9 +209,14 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
 
         {/* 価格・評価エリア: カード下部に固定配置 */}
         <div className="mt-auto pt-2 flex flex-col gap-1.5">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <StarRating rating={product.rating} />
-            <span className="text-[11px] text-gray-400">({product.reviewCount})</span>
+            <span className="text-xs font-medium text-gray-600">
+              {product.rating > 0 ? product.rating.toFixed(1) : "—"}
+            </span>
+            <span className="text-xs text-gray-400">
+              ({product.reviewCount.toLocaleString()}件)
+            </span>
           </div>
           <p className="text-base font-bold text-gray-900">
             ¥{product.price.toLocaleString()}

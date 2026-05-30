@@ -2,11 +2,11 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState, startTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 import FeaturedProductCard from "@/components/FeaturedProductCard";
 import Pagination from "@/components/Pagination";
 import { extractBrands } from "@/lib/brand-extractor";
+import { COLOR_MAP } from "@/lib/color-extractor";
 import type { Product } from "@/types/product";
 
 // ── 定数 ────────────────────────────────────────────────
@@ -26,9 +26,10 @@ const CATEGORIES = [
 
 const SORT_OPTIONS = [
   { label: "おすすめ順", value: "standard" },
+  { label: "口コミが多い順", value: "review_count_desc" },
+  { label: "評価順", value: "rating" },
   { label: "価格が安い順", value: "price_asc" },
   { label: "価格が高い順", value: "price_desc" },
-  { label: "評価が高い順", value: "rating" },
 ];
 
 const PRICE_RANGES = [
@@ -45,7 +46,18 @@ const FEATURE_KEYWORDS = [
   "防水", "ワイヤレス", "Bluetooth", "充電", "軽量",
   "速乾", "撥水", "UV", "高耐久", "折りたたみ",
   "保温", "冷感", "消臭", "ストレッチ", "防風",
+  "ノイズキャンセリング", "防塵", "耐衝撃", "吸汗", "抗菌",
+  "急速充電", "長時間", "静音", "省エネ", "低反発",
+  "4K", "8K", "有機EL", "防曇", "防臭",
 ];
+
+const MATERIAL_KEYWORDS = [
+  "シルク", "コットン", "ナイロン", "ポリエステル", "レザー",
+  "メッシュ", "ウール", "綿", "麻", "ステンレス",
+  "アルミ", "木製", "ゴム", "シリコン",
+];
+
+const COLOR_KEYWORDS = Object.keys(COLOR_MAP).concat(["黒", "白", "赤", "青", "緑", "茶"]);
 
 const scrollHide: React.CSSProperties = {
   scrollbarWidth: "none",
@@ -76,10 +88,11 @@ function buildApiUrl(q: string, page: number, priceRange: string): string {
 
 function applySortLocal(products: Product[], sort: string): Product[] {
   switch (sort) {
-    case "price_asc":  return [...products].sort((a, b) => a.price - b.price);
-    case "price_desc": return [...products].sort((a, b) => b.price - a.price);
-    case "rating":     return [...products].sort((a, b) => b.rating - a.rating);
-    default:           return products;
+    case "price_asc":         return [...products].sort((a, b) => a.price - b.price);
+    case "price_desc":        return [...products].sort((a, b) => b.price - a.price);
+    case "rating":            return [...products].sort((a, b) => b.rating - a.rating);
+    case "review_count_desc": return [...products].sort((a, b) => b.reviewCount - a.reviewCount);
+    default:                  return products;
   }
 }
 
@@ -91,7 +104,7 @@ function CardSkeleton() {
 
 function GridSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {[...Array(count)].map((_, i) => (
         <div key={i} className="bg-white rounded-2xl h-64 animate-pulse border border-gray-100" />
       ))}
@@ -99,17 +112,45 @@ function GridSkeleton({ count = 6 }: { count?: number }) {
   );
 }
 
+// ── チェックリスト（サイドバー共通） ────────────────────────
+
+function CheckList({
+  title, items, selected, onToggle,
+}: {
+  title: string;
+  items: string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">{title}</h3>
+      <div className="space-y-1.5">
+        {items.map((item) => (
+          <label key={item} className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={selected.includes(item)}
+              onChange={() => onToggle(item)}
+              className="w-4 h-4 rounded border-gray-300 accent-gray-900"
+            />
+            <span className="text-sm text-gray-700 group-hover:text-gray-900">{item}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── サイドバー ────────────────────────────────────────────
 
 function Sidebar({
-  priceRange,
-  onPriceRangeChange,
-  brands,
-  selectedBrands,
-  onBrandToggle,
-  features,
-  selectedFeatures,
-  onFeatureToggle,
+  priceRange, onPriceRangeChange,
+  brands, selectedBrands, onBrandToggle,
+  colors, selectedColors, onColorToggle,
+  materials, selectedMaterials, onMaterialToggle,
+  features, selectedFeatures, onFeatureToggle,
   onReset,
 }: {
   priceRange: string;
@@ -117,16 +158,27 @@ function Sidebar({
   brands: string[];
   selectedBrands: string[];
   onBrandToggle: (b: string) => void;
+  colors: string[];
+  selectedColors: string[];
+  onColorToggle: (c: string) => void;
+  materials: string[];
+  selectedMaterials: string[];
+  onMaterialToggle: (m: string) => void;
   features: string[];
   selectedFeatures: string[];
   onFeatureToggle: (f: string) => void;
   onReset: () => void;
 }) {
   const hasFilters =
-    priceRange !== "" || selectedBrands.length > 0 || selectedFeatures.length > 0;
+    priceRange !== "" ||
+    selectedBrands.length > 0 ||
+    selectedColors.length > 0 ||
+    selectedMaterials.length > 0 ||
+    selectedFeatures.length > 0;
 
   return (
     <div className="px-3 py-4 space-y-5">
+      {/* 価格帯 */}
       <div>
         <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">価格帯</h3>
         <div className="space-y-0.5">
@@ -146,43 +198,53 @@ function Sidebar({
         </div>
       </div>
 
-      {brands.length > 0 && (
+      {/* ブランド */}
+      <CheckList title="ブランド" items={brands} selected={selectedBrands} onToggle={onBrandToggle} />
+
+      {/* 色 */}
+      {colors.length > 0 && (
         <div>
-          <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">ブランド</h3>
-          <div className="space-y-1.5">
-            {brands.map((brand) => (
-              <label key={brand} className="flex items-center gap-2 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={selectedBrands.includes(brand)}
-                  onChange={() => onBrandToggle(brand)}
-                  className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-                />
-                <span className="text-sm text-gray-700 group-hover:text-gray-900">{brand}</span>
-              </label>
-            ))}
+          <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">カラー</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {colors.map((color) => {
+              const hex = COLOR_MAP[color];
+              const isSelected = selectedColors.includes(color);
+              return (
+                <button
+                  key={color}
+                  onClick={() => onColorToggle(color)}
+                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition ${
+                    isSelected
+                      ? "border-gray-800 bg-gray-100 font-semibold text-gray-900"
+                      : "border-gray-200 text-gray-600 hover:border-gray-400"
+                  }`}
+                >
+                  {hex && (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: hex,
+                        border: "1px solid rgba(0,0,0,0.15)",
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  {color}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {features.length > 0 && (
-        <div>
-          <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">特徴</h3>
-          <div className="space-y-1.5">
-            {features.map((feat) => (
-              <label key={feat} className="flex items-center gap-2 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={selectedFeatures.includes(feat)}
-                  onChange={() => onFeatureToggle(feat)}
-                  className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-                />
-                <span className="text-sm text-gray-700 group-hover:text-gray-900">{feat}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* 素材 */}
+      <CheckList title="素材" items={materials} selected={selectedMaterials} onToggle={onMaterialToggle} />
+
+      {/* 機能 */}
+      <CheckList title="機能・特徴" items={features} selected={selectedFeatures} onToggle={onFeatureToggle} />
 
       {hasFilters && (
         <button
@@ -242,9 +304,9 @@ type TopData = {
 };
 
 const TOP_CACHE_KEY = "navi_top_products";
-const TOP_CACHE_TTL = 1000 * 60 * 30; // 30分
+const TOP_CACHE_TTL = 1000 * 60 * 30;
 const POPULAR_CACHE_KEY = "navi_popular";
-const POPULAR_CACHE_TTL = 1000 * 60 * 60; // 1時間
+const POPULAR_CACHE_TTL = 1000 * 60 * 60;
 
 type DisplaySection = { keyword: string; title: string; products: Product[]; query?: string };
 
@@ -262,10 +324,10 @@ function TopBrowse() {
   const [sections, setSections] = useState<DisplaySection[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPersonalizing, setIsPersonalizing] = useState(false);
+  const [isPersonalized, setIsPersonalized] = useState(false);
   const [recentHistory, setRecentHistory] = useState<string[]>([]);
 
   useEffect(() => {
-    // 履歴タグは常に最新を並列取得（軽量）
     fetch("/api/history", { cache: "no-store" })
       .then((r) => r.json())
       .then((data: { history?: { query: string }[] }) => {
@@ -275,25 +337,21 @@ function TopBrowse() {
       .catch(() => {});
 
     async function load() {
-      // ─── Stage 1: 人気商品を即表示 ───────────────────────────
-
       let popularShown = false;
 
-      // ① パーソナライズキャッシュが新鮮なら直接表示（Stageスキップ）
       try {
         const cached = sessionStorage.getItem(TOP_CACHE_KEY);
         if (cached) {
           const { data, timestamp } = JSON.parse(cached) as { data: TopData; timestamp: number };
           if (Date.now() - timestamp < TOP_CACHE_TTL && (data.personalizedSections?.length ?? 0) > 0) {
             setSections(toDisplaySections(data.personalizedSections));
+            setIsPersonalized(data.isPersonalized);
             setLoading(false);
-            popularShown = true; // 人気商品スキップ（パーソナライズ済み表示）
-            // Stage 2でバックグラウンドキャッシュ更新のみ行う
+            popularShown = true;
           }
         }
       } catch {}
 
-      // ② 人気商品をsessionStorage or APIから取得
       if (!popularShown) {
         try {
           const cachedPop = sessionStorage.getItem(POPULAR_CACHE_KEY);
@@ -318,14 +376,11 @@ function TopBrowse() {
         }
       }
 
-      // ─── Stage 2: パーソナライズ（awaitして確実に実行） ────────
-
       setIsPersonalizing(true);
       try {
         let personalizedSections: { keyword: string; products: Product[] }[] | null = null;
         let needsFetch = true;
 
-        // sessionStorageキャッシュを確認
         try {
           const cached = sessionStorage.getItem(TOP_CACHE_KEY);
           if (cached) {
@@ -333,7 +388,6 @@ function TopBrowse() {
             if (Date.now() - timestamp < TOP_CACHE_TTL && (data.personalizedSections?.length ?? 0) > 0) {
               personalizedSections = data.personalizedSections;
               needsFetch = false;
-              // バックグラウンドでキャッシュを静かに更新（UIは更新しない）
               fetch("/api/search/top")
                 .then((r) => r.json())
                 .then((fresh: TopData) => {
@@ -344,19 +398,18 @@ function TopBrowse() {
           }
         } catch {}
 
-        // キャッシュなし or 期限切れ → APIから取得
         if (needsFetch) {
           const res = await fetch("/api/search/top");
           const data: TopData = await res.json();
           if ((data.personalizedSections?.length ?? 0) > 0) {
             personalizedSections = data.personalizedSections;
+            setIsPersonalized(data.isPersonalized);
             try {
               sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
             } catch {}
           }
         }
 
-        // パーソナライズデータがあれば差し替え
         if (personalizedSections && personalizedSections.length > 0) {
           setSections(toDisplaySections(personalizedSections));
         }
@@ -366,6 +419,8 @@ function TopBrowse() {
 
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hasPersonalized = isPersonalized && sections.some((s) => s.keyword !== "_popular");
 
   return (
     <div className="space-y-3 pb-10 bg-[#f3f4f6]">
@@ -416,7 +471,7 @@ function TopBrowse() {
         </div>
       )}
 
-      {/* おすすめセクション（2段階ロード） */}
+      {/* 検索履歴ベースのおすすめ */}
       {loading ? (
         <>
           {[...Array(2)].map((_, i) => (
@@ -425,14 +480,19 @@ function TopBrowse() {
         </>
       ) : sections.length > 0 ? (
         <>
-          {isPersonalizing && (
-            <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 16px 4px" }}>
+          {/* セクションヘッダー */}
+          <div className="px-4 pt-1 flex items-center justify-between">
+            <p className="text-xs font-bold text-gray-500">
+              {hasPersonalized ? "検索履歴からのおすすめ" : "人気のおすすめ商品"}
+            </p>
+            {isPersonalizing && (
               <span style={{ fontSize: "11px", color: "#aaa", display: "flex", alignItems: "center", gap: "5px" }}>
                 <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-accent)", animation: "navi-pulse 1s infinite" }} />
                 最適化中...
               </span>
-            </div>
-          )}
+            )}
+          </div>
+
           {sections.map((section) => (
             <HScrollSection
               key={section.keyword}
@@ -476,6 +536,9 @@ function SearchResults({
   onSortChange: (s: string) => void;
   onPageChange: (p: number) => void;
 }) {
+  const highTrust = products.filter((p) => p.trustLevel === "high");
+  const others    = products.filter((p) => p.trustLevel !== "high");
+
   return (
     <div className="bg-[#f3f4f6] min-h-screen pb-4">
       {/* ヘッダー */}
@@ -489,7 +552,7 @@ function SearchResults({
         </p>
       </div>
 
-      {/* ソートボタン */}
+      {/* ソートボタン（PC・スマホ共通で常に表示） */}
       <div className="bg-white px-4 py-2.5 border-b border-gray-100 overflow-x-auto" style={scrollHide}>
         <div className="flex gap-2" style={{ width: "max-content" }}>
           {SORT_OPTIONS.map(({ label, value }) => (
@@ -517,35 +580,24 @@ function SearchResults({
       {/* 商品グリッド */}
       <div className="px-3 pt-3">
         {loading ? (
-          <GridSkeleton count={8} />
+          <GridSkeleton count={10} />
         ) : products.length > 0 ? (
           <>
-            {/* 信頼度でグループ分け */}
-            {(() => {
-              const highTrust = products.filter((p) => p.trustLevel === "high");
-              const others = products.filter((p) => p.trustLevel !== "high");
-              return (
-                <div>
-                  {/* 上位2件：フィーチャー表示 */}
-                  {highTrust.slice(0, 2).map((p) => (
-                    <FeaturedProductCard key={p.id} product={p} />
-                  ))}
-                  {/* 残り：通常グリッド */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(2, 1fr)",
-                      gap: "12px",
-                      marginTop: highTrust.length > 0 ? "0" : "0",
-                    }}
-                  >
-                    {[...highTrust.slice(2), ...others].map((p) => (
-                      <ProductCard key={p.id} product={p} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Featured: PC 2列 / Mobile 1列 */}
+            {highTrust.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                {highTrust.slice(0, 2).map((p) => (
+                  <FeaturedProductCard key={p.id} product={p} />
+                ))}
+              </div>
+            )}
+
+            {/* その他: PC 5列 / Mobile 1列 */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {[...highTrust.slice(2), ...others].map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
 
             {/* ページネーション */}
             <div className="mt-6">
@@ -580,6 +632,8 @@ function SearchContent() {
   const [sort, setSort] = useState("standard");
   const [priceRange, setPriceRange] = useState("");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -591,8 +645,18 @@ function SearchContent() {
   const [browseKey, setBrowseKey] = useState(0);
 
   const brandList = useMemo(() => extractBrands(allProducts), [allProducts]);
+  const colorList = useMemo(
+    () => COLOR_KEYWORDS.filter((c) => allProducts.some((p) => p.name.includes(c))),
+    [allProducts]
+  );
+  const materialList = useMemo(
+    () => MATERIAL_KEYWORDS.filter((m) =>
+      allProducts.some((p) => p.name.includes(m) || p.features.some((f) => f.includes(m)))
+    ),
+    [allProducts]
+  );
   const featureList = useMemo(
-    () => FEATURE_KEYWORDS.filter((kw) => allProducts.some((p) => p.name.includes(kw))),
+    () => FEATURE_KEYWORDS.filter((kw) => allProducts.some((p) => p.name.includes(kw) || p.features.some((f) => f.includes(kw)))),
     [allProducts]
   );
 
@@ -600,7 +664,6 @@ function SearchContent() {
     if (!q.trim()) return;
     setLoading(true);
     setAllProducts([]);
-    // 1ページ目のみ履歴を保存（重複保存を防ぐ）
     if (p === 1) {
       fetch("/api/history", {
         method: "POST",
@@ -630,16 +693,17 @@ function SearchContent() {
         setPriceRange("");
         setCurrentPage(1);
         setSelectedBrands([]);
+        setSelectedColors([]);
+        setSelectedMaterials([]);
         setSelectedFeatures([]);
       });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       runSearch(urlQ, 1, "");
     } else {
       startTransition(() => {
         setSearched(false);
         setAllProducts([]);
         setQuery("");
-        setBrowseKey((k) => k + 1); // 履歴を最新に更新
+        setBrowseKey((k) => k + 1);
       });
     }
   }, [urlQ, runSearch]);
@@ -666,6 +730,18 @@ function SearchContent() {
     );
   }
 
+  function handleColorToggle(color: string) {
+    setSelectedColors((prev) =>
+      prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]
+    );
+  }
+
+  function handleMaterialToggle(material: string) {
+    setSelectedMaterials((prev) =>
+      prev.includes(material) ? prev.filter((m) => m !== material) : [...prev, material]
+    );
+  }
+
   function handleFeatureToggle(feat: string) {
     setSelectedFeatures((prev) =>
       prev.includes(feat) ? prev.filter((f) => f !== feat) : [...prev, feat]
@@ -675,6 +751,8 @@ function SearchContent() {
   function handleReset() {
     setPriceRange("");
     setSelectedBrands([]);
+    setSelectedColors([]);
+    setSelectedMaterials([]);
     setSelectedFeatures([]);
     setCurrentPage(1);
     runSearch(urlQ, 1, "");
@@ -693,13 +771,30 @@ function SearchContent() {
         selectedBrands.some((brand) => p.name.toLowerCase().includes(brand.toLowerCase()))
       );
     }
+    if (selectedColors.length > 0) {
+      filtered = filtered.filter((p) =>
+        selectedColors.some((c) => p.name.includes(c))
+      );
+    }
+    if (selectedMaterials.length > 0) {
+      filtered = filtered.filter((p) =>
+        selectedMaterials.some((m) => p.name.includes(m) || p.features.some((f) => f.includes(m)))
+      );
+    }
     if (selectedFeatures.length > 0) {
       filtered = filtered.filter((p) =>
-        selectedFeatures.some((feat) => p.name.includes(feat))
+        selectedFeatures.some((feat) => p.name.includes(feat) || p.features.some((f) => f.includes(feat)))
       );
     }
     return applySortLocal(filtered, sort);
-  }, [allProducts, sort, selectedBrands, selectedFeatures]);
+  }, [allProducts, sort, selectedBrands, selectedColors, selectedMaterials, selectedFeatures]);
+
+  const hasActiveFilters =
+    priceRange !== "" ||
+    selectedBrands.length > 0 ||
+    selectedColors.length > 0 ||
+    selectedMaterials.length > 0 ||
+    selectedFeatures.length > 0;
 
   const sidebarProps = {
     priceRange,
@@ -707,6 +802,12 @@ function SearchContent() {
     brands: brandList,
     selectedBrands,
     onBrandToggle: handleBrandToggle,
+    colors: colorList,
+    selectedColors,
+    onColorToggle: handleColorToggle,
+    materials: materialList,
+    selectedMaterials,
+    onMaterialToggle: handleMaterialToggle,
     features: featureList,
     selectedFeatures,
     onFeatureToggle: handleFeatureToggle,
@@ -808,32 +909,37 @@ function SearchContent() {
               style={{
                 fontSize: "14px",
                 fontWeight: 500,
-                color: "var(--color-text)",
-                border: "1.5px solid var(--color-border)",
+                color: hasActiveFilters ? "var(--color-primary)" : "var(--color-text)",
+                border: hasActiveFilters
+                  ? "1.5px solid var(--color-primary)"
+                  : "1.5px solid var(--color-border)",
                 borderRadius: "var(--radius-sm)",
                 padding: "0 12px",
                 height: "48px",
-                background: "white",
+                background: hasActiveFilters ? "rgba(191,0,0,0.05)" : "white",
               }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25" />
               </svg>
               絞り込み
+              {hasActiveFilters && (
+                <span className="ml-1 text-xs font-bold bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  {selectedBrands.length + selectedColors.length + selectedMaterials.length + selectedFeatures.length + (priceRange ? 1 : 0)}
+                </span>
+              )}
             </button>
           )}
         </div>
       </form>
 
-      {/* トップブラウズ：検索から戻るたびに key を変えて強制リフレッシュ */}
       {!searched && !loading && <TopBrowse key={browseKey} />}
 
-      {/* 初期ロード中 */}
       {!searched && loading && (
         <div className="px-3 pt-3 bg-[#f3f4f6] min-h-screen">
           <div className="bg-white rounded-2xl h-10 animate-pulse mb-3" />
           <div className="bg-white rounded-2xl h-8 animate-pulse mb-3" />
-          <GridSkeleton count={8} />
+          <GridSkeleton count={10} />
         </div>
       )}
 
