@@ -292,7 +292,19 @@ ${JSON.stringify(searchConditions)}
       return await searchMixed({ keyword: originalKeyword || shortKeyword }, 30)
     }
 
-    const products = await searchWithFallback()
+    // 口コミ数・評価でソートして信頼性の高い商品を上位に
+    const sortByTrust = (prods: Product[]) =>
+      [...prods].sort((a, b) => {
+        // 口コミ0件の商品は最後尾へ
+        if (a.reviewCount === 0 && b.reviewCount > 0) return 1;
+        if (b.reviewCount === 0 && a.reviewCount > 0) return -1;
+        // 口コミ数 × 評価の重み付きスコアで降順
+        const scoreA = a.rating * Math.log10(a.reviewCount + 10);
+        const scoreB = b.rating * Math.log10(b.reviewCount + 10);
+        return scoreB - scoreA;
+      });
+
+    const products = sortByTrust(await searchWithFallback())
 
     // 価格条件を緩めた場合の注記
     const relaxedMessage =

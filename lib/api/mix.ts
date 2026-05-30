@@ -12,6 +12,8 @@ export function deduplicateProducts(products: Product[]): Product[] {
   const seen = new Set<string>();
   return products.filter((p) => {
     if (p.name.includes("ふるさと納税")) return false;
+    // 口コミも評価も全くない商品は信頼度ゼロなので除外
+    if (p.reviewCount === 0 && p.rating === 0) return false;
     const nameKey = p.name.slice(0, 20).toLowerCase().replace(/\s/g, "");
     const key = `${nameKey}_${p.price}`;
     if (seen.has(key)) return false;
