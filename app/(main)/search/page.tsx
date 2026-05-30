@@ -240,6 +240,9 @@ type TopData = {
   isPersonalized: boolean;
 };
 
+const TOP_CACHE_KEY = "navi_top_products";
+const TOP_CACHE_TTL = 1000 * 60 * 30; // 30分
+
 function TopBrowse() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -248,26 +251,51 @@ function TopBrowse() {
   const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
-    // 既に取得済みなら再取得しない
     if (hasFetched) return;
 
+    // 履歴タグは常に最新を取得（軽量なので）
+    const fetchHistory = fetch("/api/history", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { history?: { query: string }[] }) => {
+        const queries = (data.history ?? []).map((h) => h.query).filter(Boolean);
+        setRecentHistory([...new Set(queries)].slice(0, 7) as string[]);
+      })
+      .catch(() => {});
+
     async function load() {
+      // ① sessionStorageのキャッシュを確認（即座に表示）
+      try {
+        const cached = sessionStorage.getItem(TOP_CACHE_KEY);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached) as { data: TopData; timestamp: number };
+          if (Date.now() - timestamp < TOP_CACHE_TTL) {
+            setPersonalizedSections(data.personalizedSections ?? []);
+            setLoading(false);
+            setHasFetched(true);
+            // バックグラウンドで履歴取得とキャッシュ更新
+            fetchHistory;
+            fetch("/api/search/top")
+              .then((r) => r.json())
+              .then((fresh: TopData) => {
+                sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data: fresh, timestamp: Date.now() }));
+              })
+              .catch(() => {});
+            return;
+          }
+        }
+      } catch {}
+
+      // ② キャッシュなし → APIを叩く
       setLoading(true);
       try {
-        // 履歴とおすすめ商品を並列取得
-        const [histRes, topRes] = await Promise.all([
-          fetch("/api/history", { cache: "no-store" }),
-          fetch("/api/search/top"),
+        const [, topData] = await Promise.all([
+          fetchHistory,
+          fetch("/api/search/top").then((r) => r.json() as Promise<TopData>),
         ]);
-        const [histData, topData]: [{ history?: { query: string }[] }, TopData] =
-          await Promise.all([histRes.json(), topRes.json()]);
-
-        const queries: string[] = (histData.history ?? [])
-          .map((h: { query: string }) => h.query)
-          .filter(Boolean);
-        const unique = [...new Set(queries)] as string[];
-        setRecentHistory(unique.slice(0, 7));
         setPersonalizedSections(topData.personalizedSections ?? []);
+        try {
+          sessionStorage.setItem(TOP_CACHE_KEY, JSON.stringify({ data: topData, timestamp: Date.now() }));
+        } catch {}
       } catch {
         // エラーは無視
       } finally {
@@ -275,6 +303,7 @@ function TopBrowse() {
         setHasFetched(true);
       }
     }
+
     load();
   }, []); // 空配列で初回のみ実行
 
