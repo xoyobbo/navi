@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { Product } from "@/types/product"
 
 interface Props {
@@ -16,28 +16,102 @@ export default function PriceRangeSlider({ products, minPrice, maxPrice, onChang
 
   const [sliderMin, setSliderMin] = useState(minPrice ?? globalMin)
   const [sliderMax, setSliderMax] = useState(maxPrice ?? globalMax)
+  const [dragging, setDragging] = useState<"min" | "max" | null>(null)
+
+  const trackRef = useRef<HTMLDivElement>(null)
+  // refs でクロージャ内の最新値を参照
+  const draggingRef = useRef<"min" | "max" | null>(null)
+  const sliderMinRef = useRef(sliderMin)
+  const sliderMaxRef = useRef(sliderMax)
+  const globalMinRef = useRef(globalMin)
+  const globalMaxRef = useRef(globalMax)
+  const onChangeRef = useRef(onChange)
+
+  sliderMinRef.current = sliderMin
+  sliderMaxRef.current = sliderMax
+  globalMinRef.current = globalMin
+  globalMaxRef.current = globalMax
+  onChangeRef.current = onChange
 
   useEffect(() => {
     setSliderMin(minPrice ?? globalMin)
     setSliderMax(maxPrice ?? globalMax)
   }, [minPrice, maxPrice, globalMin, globalMax])
 
+  // グローバルドラッグイベントを1回だけ登録
+  useEffect(() => {
+    const getVal = (clientX: number) => {
+      const el = trackRef.current
+      if (!el) return 0
+      const rect = el.getBoundingClientRect()
+      const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+      const gMin = globalMinRef.current
+      const gMax = globalMaxRef.current
+      const step = Math.max(1, Math.round((gMax - gMin) / 100))
+      return Math.round((gMin + (gMax - gMin) * pct) / step) * step
+    }
+
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      if (!draggingRef.current) return
+      if (e.cancelable) e.preventDefault()
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX
+      const val = getVal(clientX)
+      const gMin = globalMinRef.current
+      const gMax = globalMaxRef.current
+
+      if (draggingRef.current === "min") {
+        const next = Math.min(val, sliderMaxRef.current - 1)
+        setSliderMin(next)
+        onChangeRef.current(next === gMin ? null : next, sliderMaxRef.current === gMax ? null : sliderMaxRef.current)
+      } else {
+        const next = Math.max(val, sliderMinRef.current + 1)
+        setSliderMax(next)
+        onChangeRef.current(sliderMinRef.current === gMin ? null : sliderMinRef.current, next === gMax ? null : next)
+      }
+    }
+
+    const onEnd = () => {
+      if (!draggingRef.current) return
+      draggingRef.current = null
+      setDragging(null)
+    }
+
+    window.addEventListener("mousemove", onMove)
+    window.addEventListener("touchmove", onMove, { passive: false })
+    window.addEventListener("mouseup", onEnd)
+    window.addEventListener("touchend", onEnd)
+
+    return () => {
+      window.removeEventListener("mousemove", onMove)
+      window.removeEventListener("touchmove", onMove)
+      window.removeEventListener("mouseup", onEnd)
+      window.removeEventListener("touchend", onEnd)
+    }
+  }, [])
+
   if (!allPrices.length) return null
 
   const range = globalMax - globalMin
   const ratio = range === 0 ? 0 : 1 / range
-  const step = Math.max(1, Math.round(range / 100))
 
   const priceDistribution = range === 0 ? [] : Array.from({ length: 20 }, (_, i) => {
-    const bucketMin = globalMin + (range / 20) * i
-    const bucketMax = globalMin + (range / 20) * (i + 1)
+    const lo = globalMin + (range / 20) * i
+    const hi = globalMin + (range / 20) * (i + 1)
     return {
-      count: allPrices.filter((p) => p >= bucketMin && p < bucketMax).length,
-      price: Math.round((bucketMin + bucketMax) / 2),
+      count: allPrices.filter((p) => p >= lo && p < hi).length,
+      price: Math.round((lo + hi) / 2),
     }
   })
-
   const maxCount = Math.max(...priceDistribution.map((b) => b.count), 1)
+
+  const minPct = (sliderMin - globalMin) * ratio * 100
+  const maxPct = (sliderMax - globalMin) * ratio * 100
+
+  const startDrag = (which: "min" | "max") => (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault()
+    draggingRef.current = which
+    setDragging(which)
+  }
 
   return (
     <div>
@@ -64,15 +138,18 @@ export default function PriceRangeSlider({ products, minPrice, maxPrice, onChang
                 minHeight: "2px",
                 background: bucket.price >= sliderMin && bucket.price <= sliderMax ? "#1a1a1a" : "#e8e8e4",
                 borderRadius: "2px 2px 0 0",
-                transition: "background 0.2s",
+                transition: "background 0.15s",
               }}
             />
           ))}
         </div>
       )}
 
-      {/* レンジスライダー */}
-      <div style={{ position: "relative", height: "40px" }}>
+      {/* スライダー */}
+      <div
+        ref={trackRef}
+        style={{ position: "relative", height: "40px", userSelect: "none" }}
+      >
         {/* トラック */}
         <div
           style={{
@@ -86,11 +163,12 @@ export default function PriceRangeSlider({ products, minPrice, maxPrice, onChang
             transform: "translateY(-50%)",
           }}
         >
+          {/* 選択範囲ハイライト */}
           <div
             style={{
               position: "absolute",
-              left: `${(sliderMin - globalMin) * ratio * 100}%`,
-              right: `${(1 - (sliderMax - globalMin) * ratio) * 100}%`,
+              left: `${minPct}%`,
+              right: `${100 - maxPct}%`,
               height: "100%",
               background: "#1a1a1a",
               borderRadius: "2px",
@@ -98,87 +176,45 @@ export default function PriceRangeSlider({ products, minPrice, maxPrice, onChang
           />
         </div>
 
-        {/* 最小値スライダー（透明） */}
-        <input
-          type="range"
-          min={globalMin}
-          max={globalMax}
-          step={step}
-          value={sliderMin}
-          onChange={(e) => {
-            const val = Number(e.target.value)
-            if (val <= sliderMax) {
-              setSliderMin(val)
-              onChange(val === globalMin ? null : val, sliderMax === globalMax ? null : sliderMax)
-            }
-          }}
-          style={{
-            position: "absolute",
-            width: "100%",
-            opacity: 0,
-            height: "40px",
-            cursor: "pointer",
-            zIndex: sliderMin > (globalMax + globalMin) / 2 ? 3 : 2,
-          }}
-        />
-
-        {/* 最大値スライダー（透明） */}
-        <input
-          type="range"
-          min={globalMin}
-          max={globalMax}
-          step={step}
-          value={sliderMax}
-          onChange={(e) => {
-            const val = Number(e.target.value)
-            if (val >= sliderMin) {
-              setSliderMax(val)
-              onChange(sliderMin === globalMin ? null : sliderMin, val === globalMax ? null : val)
-            }
-          }}
-          style={{
-            position: "absolute",
-            width: "100%",
-            opacity: 0,
-            height: "40px",
-            cursor: "pointer",
-            zIndex: sliderMin > (globalMax + globalMin) / 2 ? 2 : 3,
-          }}
-        />
-
         {/* 最小値ハンドル */}
         <div
+          onMouseDown={startDrag("min")}
+          onTouchStart={startDrag("min")}
           style={{
             position: "absolute",
             top: "50%",
-            left: `${(sliderMin - globalMin) * ratio * 100}%`,
+            left: `${minPct}%`,
             transform: "translate(-50%, -50%)",
-            width: "24px",
-            height: "24px",
+            width: "28px",
+            height: "28px",
             borderRadius: "50%",
             background: "white",
-            border: "2px solid #1a1a1a",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-            pointerEvents: "none",
-            zIndex: 1,
+            border: dragging === "min" ? "3px solid #1a1a1a" : "2px solid #1a1a1a",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            cursor: dragging === "min" ? "grabbing" : "grab",
+            touchAction: "none",
+            zIndex: 2,
           }}
         />
 
         {/* 最大値ハンドル */}
         <div
+          onMouseDown={startDrag("max")}
+          onTouchStart={startDrag("max")}
           style={{
             position: "absolute",
             top: "50%",
-            left: `${(sliderMax - globalMin) * ratio * 100}%`,
+            left: `${maxPct}%`,
             transform: "translate(-50%, -50%)",
-            width: "24px",
-            height: "24px",
+            width: "28px",
+            height: "28px",
             borderRadius: "50%",
             background: "white",
-            border: "2px solid #1a1a1a",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-            pointerEvents: "none",
-            zIndex: 1,
+            border: dragging === "max" ? "3px solid #1a1a1a" : "2px solid #1a1a1a",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            cursor: dragging === "max" ? "grabbing" : "grab",
+            touchAction: "none",
+            zIndex: 2,
           }}
         />
       </div>

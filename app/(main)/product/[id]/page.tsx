@@ -536,7 +536,7 @@ export default function ProductDetailPage() {
             {/* Amazonボタン */}
             <button
               className="block w-full text-center text-base font-bold text-white bg-[#FF9900] hover:bg-[#e68a00] transition rounded-2xl py-4 shadow-sm"
-              onClick={async () => {
+              onClick={() => {
                 fetch("/api/track", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -549,20 +549,20 @@ export default function ProductDetailPage() {
                     source: "amazon",
                   }),
                 }).catch(() => {});
-                const win = window.open("", "_blank");
-                const id = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ?? "navi-shop-22";
-                try {
-                  const res = await fetch("/api/extract-keyword", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ productName: product.name }),
-                  });
-                  const data = await res.json();
-                  const kw = data.keyword || product.name.slice(0, 30);
-                  if (win) win.location.href = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${id}`;
-                } catch {
-                  if (win) win.location.href = `https://www.amazon.co.jp/s?k=${encodeURIComponent(product.name.slice(0, 30))}&tag=${id}`;
-                }
+                // ブラウザのポップアップブロック回避：同期的に URL を開く
+                const kw = product.name
+                  .replace(/[【】「」『』★☆◆◇■□●○▲△▼▽♪♦]/g, " ")
+                  .replace(/\d+%OFF/gi, " ")
+                  .replace(/送料無料|ポイント\d+倍|最新|新品|正規品/g, " ")
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .slice(0, 40);
+                const tag = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ?? "navi-shop-22";
+                window.open(
+                  `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${tag}`,
+                  "_blank",
+                  "noopener,noreferrer"
+                );
               }}
             >
               🔍 Amazonでも探す →

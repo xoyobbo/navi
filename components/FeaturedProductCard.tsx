@@ -36,22 +36,23 @@ export default function FeaturedProductCard({ product }: { product: Product }) {
       onClick={handleClick}
       style={{
         background: "white",
-        borderRadius: "16px",
+        borderRadius: "12px",
         border: "1.5px solid #c8a96e",
         boxShadow: "0 4px 16px rgba(200,169,110,0.15)",
         overflow: "hidden",
         marginBottom: "12px",
         display: "flex",
+        height: "160px",
         cursor: "pointer",
       }}
     >
-      {/* 画像（左半分） */}
+      {/* 画像（左・固定正方形） */}
       <div
         style={{
           position: "relative",
-          width: "45%",
+          width: "160px",
+          height: "160px",
           flexShrink: 0,
-          minHeight: "160px",
           background: "#f3f4f6",
         }}
       >
@@ -60,7 +61,7 @@ export default function FeaturedProductCard({ product }: { product: Product }) {
             src={product.image}
             alt={product.name}
             fill
-            style={{ objectFit: "cover" }}
+            style={{ objectFit: "contain" }}
             unoptimized
             onError={() => setImgError(true)}
           />
@@ -93,6 +94,9 @@ export default function FeaturedProductCard({ product }: { product: Product }) {
             fontSize: "10px",
             fontWeight: 700,
             letterSpacing: "0.05em",
+            maxWidth: "calc(100% - 16px)",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
           }}
         >
           Navi&apos;s Pick

@@ -4,13 +4,7 @@ import { NextRequest } from "next/server";
 
 export const maxDuration = 30
 import { createClient } from "@supabase/supabase-js";
-import { searchRakuten } from "@/lib/api/rakuten";
-import { deduplicateProducts, searchMixed } from "@/lib/api/mix";
-import { withCache } from "@/lib/cache";
-import { scoreProduct } from "@/lib/scoring";
-import { extractSearchKeyword } from "@/lib/extract-keyword";
-import { saveSearchHistory } from "@/lib/history";
-import { createSession, saveMessage } from "@/lib/chat";
+import { searchMixed } from "@/lib/api/mix";
 import { getPriceRanges } from "@/lib/category-price-ranges";
 import { buildLearnedContext, updateUserProfile } from "@/lib/learning-engine";
 import type { Product } from "@/types/product";
@@ -83,43 +77,37 @@ export async function POST(req: NextRequest) {
 あなたはNaviというAIショッピングアシスタントです。
 
 ## 質問の流れ（最大6回）
+Q1: 予算  Q2: 使用シーン  Q3: 重視する機能  Q4: ブランド  Q5: 使う人  Q6: その他
 
-Q1: 予算
-Q2: 使用シーン・用途
-Q3: 重視する機能（最重要）
-Q4: ブランドのこだわり
-Q5: 使う人（自分・家族・プレゼント等）
-Q6: 他に気になる条件はあるか
-
-## 各質問のルール
-- 前の回答を必ず活かして次の質問をする
-- 既に答えた内容は絶対に聞かない
-- 商品カテゴリに応じて質問内容を変える
-  例：イヤホンなら「有線/ワイヤレス」を聞く
-      家電なら「設置場所」を聞く
-      服なら「サイズ感」を聞く
-- 質問は1つずつ・選択肢付きで
-
-## 絶対に守るルール
-- 会話履歴を全て参照する
-- 条件は会話が終わるまで保持する
-- 「メンズ」と言ったら以降ずっとメンズ
-- 最後まで必ず商品を表示する
-- 商品が見つからなくても「条件を広げて探しました」と伝えて必ず商品を返す
+## ルール
+- 前の回答を活かして次の質問をする（既に答えた内容は聞かない）
+- 商品カテゴリに応じた質問にする（イヤホン→有線/ワイヤレス、服→サイズ感 等）
+- questionStep=${questionStep}回目に対応した質問をする
+- ${priceRangeRule}
 
 ### 現在の蓄積条件
 ${JSON.stringify(searchConditions)}
 元のキーワード：${originalKeyword || "未設定"}
 
-## 選択肢の形式
-質問とともに、必ず以下の形式で選択肢を含めてください：
-<options>["選択肢1", "選択肢2", "選択肢3", "選択肢4"]</options>
-
-ルール：
-- ${priceRangeRule}
-- 商品カテゴリに合わせた自然な選択肢を4〜6個用意する
-- 最後に「こだわらない」または「特に決めていない」を必ず含める
-- 選択肢はJSONの文字列配列形式のみ（番号リストは不可）
+## 必須：以下のJSON形式のみで返答すること（マークダウン・説明文不要）
+{
+  "replyMessage": "共感＋次の質問（2〜3行）",
+  "extractedConditions": {
+    "keyword": "${originalKeyword || message}",
+    "gender": null,
+    "minPrice": null,
+    "maxPrice": null,
+    "features": [],
+    "useCase": null
+  },
+  "nextQuestion": {
+    "question": "質問テキスト",
+    "options": ["選択肢1", "選択肢2", "選択肢3", "特に決めていない"]
+  }
+}
+- extractedConditionsは会話全体から抽出した条件
+- keywordは必ず「${originalKeyword || message}」のまま
+- 選択肢は4〜6個、最後に「特に決めていない」
 `
 
     // 学習済みコンテキストをシステムプロンプトに追加
@@ -161,30 +149,44 @@ ${JSON.stringify(searchConditions)}
     try {
       const res = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 500,
+        max_tokens: 700,
         system: finalSystemPrompt,
         messages: claudeMessages,
       })
 
-      const naviMessage =
-        res.content[0].type === "text" ? res.content[0].text : ""
+      const rawText = res.content[0].type === "text" ? res.content[0].text : "{}"
+      console.log("Claude呼び出し：1回 (!isFinal)")
 
-      const optionsMatch =
-        naviMessage.match(/<options>([\s\S]*?)<\/options>/)
+      // JSON パース（コードブロックも対応）
+      const jsonStr =
+        rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)?.[1] ??
+        rawText.match(/(\{[\s\S]*\})/)?.[1] ??
+        "{}"
+
+      let message = ""
       let options: string[] = []
-      if (optionsMatch) {
-        try {
-          options = JSON.parse(optionsMatch[1])
-        } catch {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let newConditions: any = {
+        keyword: originalKeyword || "",
+        gender: null, minPrice: null, maxPrice: null, features: [], useCase: null,
       }
 
-      const displayMessage = naviMessage
-        .replace(/<options>[\s\S]*?<\/options>/g, "")
-        .trim()
+      try {
+        const parsed = JSON.parse(jsonStr)
+        message = parsed.replyMessage ?? ""
+        options = parsed.nextQuestion?.options ?? []
+        if (parsed.extractedConditions) {
+          newConditions = { ...newConditions, ...parsed.extractedConditions }
+        }
+      } catch {
+        // フォールバック：テキストをそのまま使用
+        message = rawText.replace(/\{[\s\S]*\}/g, "").trim() || rawText
+      }
 
       return Response.json({
-        message: displayMessage,
+        message: message || "次の質問をお答えください",
         options,
+        newConditions,
         products: [],
         isQuestion: true,
         ...(priceRanges ? { priceRanges } : {}),
@@ -231,16 +233,18 @@ ${JSON.stringify(searchConditions)}
       .join("\n")
 
     const combinedRes = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 800,
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 400,
       messages: [{
         role: "user",
         content:
-          `ユーザーとの会話：\n${conversationText}\n\n` +
-          `以下を全て含むJSONのみ返してください：\n` +
-          `{"replyMessage":"返答メッセージ","conditions":{"keyword":"イヤホン","gender":"メンズ","minPrice":20000,"maxPrice":30000,"features":["ノイキャン"],"useCase":"通勤"},"nextQuestion":{"question":"次の質問","options":["選択肢1","選択肢2","選択肢3","特に決めていない"]}}`,
+          `以下の会話から検索条件を抽出してJSONのみ返してください：\n\n` +
+          `会話：\n${conversationText}\n\n` +
+          `{"replyMessage":"返答メッセージ","conditions":{"keyword":"${originalKeyword || 'イヤホン'}","gender":null,"minPrice":null,"maxPrice":null,"features":[],"useCase":null}}\n\n` +
+          `keywordは必ず「${originalKeyword}」を使うこと。`,
       }],
     })
+    console.log("Claude呼び出し：1回 (isFinal/Haiku)")
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let extractedConditions: any = {
@@ -381,133 +385,4 @@ ${JSON.stringify(searchConditions)}
       newConditions: extractedConditions,
     })
   }
-
-  if (!message?.trim()) {
-    return Response.json({ error: "メッセージが空です" }, { status: 400 });
-  }
-
-  const { userId } = await auth();
-
-  const encoder = new TextEncoder();
-  const transformStream = new TransformStream<Uint8Array, Uint8Array>();
-  const writer = transformStream.writable.getWriter();
-
-  const sendEvent = async (data: object) => {
-    try {
-      await writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-    } catch {
-      // writer already closed
-    }
-  };
-
-  (async () => {
-    let sessionId = existingSessionId ?? null;
-
-    try {
-      // ── ① セッション管理 ──────────────────────────────────
-      if (userId) {
-        if (!sessionId) {
-          sessionId = await createSession(userId);
-        }
-        await saveMessage(sessionId, "user", message);
-      }
-
-      await sendEvent({ type: "session", sessionId: sessionId ?? "guest" });
-
-      // ── ② キーワード抽出 ──────────────────────────────────
-      const extracted = originalKeyword.trim()
-        ? { keyword: originalKeyword.trim(), minPrice: null, maxPrice: null }
-        : await extractSearchKeyword(message, anthropic);
-
-      const conditions = {
-        keyword: extracted.keyword,
-        minPrice: extracted.minPrice ?? searchConditions.minPrice ?? null,
-        maxPrice: extracted.maxPrice ?? searchConditions.maxPrice ?? null,
-      };
-
-      if (userId) saveSearchHistory(userId, conditions.keyword).catch(() => {});
-
-      // ── ③ 商品検索（フォールバック付き） ─────────────────────
-      let products: Product[] = await searchRakuten({
-        keyword: conditions.keyword,
-        minPrice: conditions.minPrice,
-        maxPrice: conditions.maxPrice,
-        hits: 30,
-      });
-      let wasRelaxed = false;
-
-      if (products.length === 0 && (conditions.minPrice || conditions.maxPrice)) {
-        products = await searchRakuten({ keyword: conditions.keyword, hits: 30 });
-        if (products.length > 0) wasRelaxed = true;
-      }
-
-      // ── ④ Claude でフォローアップ生成 ─────────────────────
-      let followUp: FollowUpQuestion | null = null;
-
-      if (questionStep < 3 && products.length > 0) {
-        try {
-          const fuRes = await anthropic.messages.create({
-            model: "claude-sonnet-4-6",
-            max_tokens: 200,
-            messages: [
-              {
-                role: "user",
-                content:
-                  `「${conditions.keyword}」を探しています。` +
-                  `ステップ${questionStep}の絞り込み質問を1つ生成してJSONのみ返してください。\n` +
-                  `ステップ0:予算 ステップ1:使用シーン ステップ2:重視する機能\n` +
-                  `{"question":"予算は？","options":["1万円以内","1〜3万円","3万円以上","決めていない"]}`,
-              },
-            ],
-          });
-          const text = fuRes.content[0].type === "text" ? fuRes.content[0].text : "";
-          const match = text.match(/\{[\s\S]*?\}/);
-          if (match) followUp = JSON.parse(match[0]);
-        } catch (e) {
-          console.error("[ai] フォローアップ生成エラー:", e);
-        }
-      }
-
-      // ── ⑤ 固定メッセージ ──────────────────────────────────
-      const replyMessage =
-        products.length > 0
-          ? `「${conditions.keyword}」の商品を${products.length}件見つけました！${wasRelaxed ? "（価格条件を外して検索しました）" : ""}`
-          : `「${conditions.keyword}」の商品が見つかりませんでした。別のキーワードをお試しください。`;
-
-      // ── ⑥ 保存・SSE 送信 ──────────────────────────────────
-      if (userId && sessionId) {
-        await saveMessage(sessionId, "assistant", replyMessage, products).catch(() => {});
-      }
-
-      await sendEvent({ type: "message", content: replyMessage });
-      await sendEvent({ type: "products", products });
-      if (followUp) await sendEvent({ type: "followUp", followUp });
-      await sendEvent({
-        type: "conditions",
-        conditions: {
-          maxPrice: conditions.maxPrice ?? searchConditions.maxPrice,
-          minPrice: conditions.minPrice ?? searchConditions.minPrice,
-          minRating: searchConditions.minRating,
-          features: searchConditions.features ?? [],
-        },
-        keyword: conditions.keyword,
-      });
-      await sendEvent({ type: "done" });
-    } catch (e) {
-      const error = e instanceof Error ? e.message : "不明なエラー";
-      console.error("[ai] エラー:", error);
-      await sendEvent({ type: "error", error });
-      await sendEvent({ type: "done" });
-    } finally {
-      writer.close();
-    }
-  })();
-
-  return new Response(transformStream.readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
 }

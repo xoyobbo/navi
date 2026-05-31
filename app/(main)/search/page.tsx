@@ -184,7 +184,7 @@ function Sidebar({
     selectedFeatures.length > 0;
 
   return (
-    <div className="px-3 py-4 space-y-5">
+    <div className="px-3 pt-3 pb-4 space-y-5">
       {/* 価格帯 */}
       <div>
         <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">価格帯</h3>
@@ -590,8 +590,8 @@ function SearchResults({
               </div>
             )}
 
-            {/* その他: PC 5列 / Mobile 1列 */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {/* その他: Mobile 2列 / SM 3列 / PC 4-5列 */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {[...highTrust.slice(2), ...others].map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
@@ -987,8 +987,18 @@ function SearchContent() {
       {searched && (
         <div className="md:flex" style={{ overflowX: "hidden" }}>
           {/* PC サイドバー */}
-          <aside className="hidden md:block w-[260px] shrink-0 bg-white border-r border-gray-100 sticky top-[108px] self-start max-h-[calc(100vh-108px)] overflow-y-auto">
-            <Sidebar {...sidebarProps} />
+          <aside
+            className="hidden md:block w-[260px] shrink-0 border-r border-gray-100 sticky self-start bg-white"
+            style={{ top: "125px", maxHeight: "calc(100vh - 125px)", display: "flex", flexDirection: "column" }}
+          >
+            {/* ヘッダー：メインコンテンツの件数行と高さを揃える */}
+            <div className="px-4 py-3 border-b border-gray-100 shrink-0">
+              <h2 className="text-sm font-bold text-gray-700">絞り込み</h2>
+            </div>
+            {/* スクロール可能エリア */}
+            <div className="overflow-y-auto flex-1">
+              <Sidebar {...sidebarProps} />
+            </div>
           </aside>
 
           {/* メインコンテンツ */}

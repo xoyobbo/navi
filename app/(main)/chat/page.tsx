@@ -265,9 +265,11 @@ export default function ChatPage() {
       const data = await res.json();
 
       const msgs: ChatMessage[] = (data.messages ?? []).map(
-        (m: { role: string; content: string }) => ({
+        (m: { role: string; content: string; products?: Product[] }) => ({
           role: m.role as "user" | "assistant",
           content: m.content,
+          // 商品もメッセージに復元（カルーセルが再表示される）
+          products: m.products?.length ? m.products : undefined,
         })
       );
       setMessages(msgs);
@@ -278,15 +280,8 @@ export default function ChatPage() {
       );
       if (firstUser) setOriginalKeyword(firstUser.content);
 
-      // 最後に商品データがあるメッセージから商品を復元
-      const lastWithProducts = [...(data.messages ?? [])]
-        .reverse()
-        .find((m: { products?: Product[] }) => (m.products?.length ?? 0) > 0);
-
-      if (lastWithProducts?.products) {
-        const restored = getBalancedProducts(lastWithProducts.products);
-        setFinalProducts(restored);
-        setCarouselKey((k) => k + 1);
+      // 商品が含まれているメッセージがあれば result フェーズに戻す
+      if (msgs.some(m => (m.products?.length ?? 0) > 0)) {
         setChatPhase("result");
       }
     } catch {
@@ -304,7 +299,7 @@ export default function ChatPage() {
     history: ConversationMessage[],
     keyword = "",
     cond?: Partial<Conditions>
-  ): Promise<{ message: string; options: string[]; priceRanges?: PriceRange[] }> {
+  ): Promise<{ message: string; options: string[]; priceRanges?: PriceRange[]; newConditions?: Partial<Conditions> }> {
     const res = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -313,6 +308,7 @@ export default function ChatPage() {
         conversationHistory: history,
         originalKeyword: keyword,
         searchConditions: cond ? { minPrice: cond.minPrice, maxPrice: cond.maxPrice } : {},
+        questionStep: cond ? undefined : 0,
         isQuestion: true,
       }),
     });
@@ -321,6 +317,7 @@ export default function ChatPage() {
       message: data.message ?? "",
       options: data.options ?? [],
       priceRanges: data.priceRanges,
+      newConditions: data.newConditions,
     };
   }
 
@@ -399,14 +396,18 @@ export default function ChatPage() {
 
       if (data.products?.length > 0) {
         const balanced = getBalancedProducts(data.products);
-        setFinalProducts(balanced);
-        setCarouselKey((k) => k + 1);
         setChatPhase("result");
 
         const summary = buildSummary(cond);
         const resultMsg =
           (summary ? summary + "\n" : "") + `${data.products.length}件見つかりました！`;
-        addMsg("assistant", resultMsg);
+
+        // ローディングメッセージを商品入りメッセージに置き換える
+        setMessages(prev => {
+          const withoutLoading = prev.slice(0, -1);
+          return [...withoutLoading, { role: "assistant" as const, content: resultMsg, products: balanced }];
+        });
+
         saveMsg("assistant", resultMsg, balanced);
       } else {
         addMsg("assistant", "申し訳ありません、商品を取得できませんでした。もう一度お試しください。");
@@ -487,7 +488,18 @@ export default function ChatPage() {
 
           // updatedMessages を使って最新のユーザー回答も履歴に含める
           const questionHistory = updatedMessages.map(m => ({ role: m.role, content: m.content }));
-          const { message: naviMsg, options } = await callQuestionAPI(msg, questionHistory, originalKeyword, newCond);
+          const { message: naviMsg, options, newConditions } = await callQuestionAPI(msg, questionHistory, originalKeyword, newCond);
+          // Claude が抽出した条件を非破壊的にマージ
+          if (newConditions) {
+            setConditions(prev => ({
+              ...prev,
+              gender: newConditions.gender ?? prev.gender,
+              minPrice: newConditions.minPrice ?? prev.minPrice,
+              maxPrice: newConditions.maxPrice ?? prev.maxPrice,
+              features: (newConditions.features as string[] | undefined)?.length ? newConditions.features as string[] : prev.features,
+              useCase: newConditions.useCase ?? prev.useCase,
+            }));
+          }
           addMsg("assistant", naviMsg);
           setCurrentOptions(options);
           saveMsg("assistant", naviMsg);
@@ -517,7 +529,7 @@ export default function ChatPage() {
           };
           setConditions(refinedCond);
           saveMsg("user", msg);
-          setChatPhase("questioning"); // fetchProductsがresultに戻す
+          // fetchProducts が result フェーズに戻すので setChatPhase は不要
           const refineHistory = updatedMessages.map(m => ({ role: m.role, content: m.content }));
           await fetchProducts(originalKeyword, refinedCond, refineHistory);
           break;
@@ -626,24 +638,86 @@ export default function ChatPage() {
           ) : (
             <div className="px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
               {/* メッセージ一覧 */}
-              {messages.map((msg, index) =>
-                msg.role === "user" ? (
-                  <div key={index} className="flex justify-end">
-                    <div className="bg-gray-900 text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[75%] text-sm leading-relaxed whitespace-pre-wrap">
-                      {msg.content}
+              {(() => {
+                // 最後に商品があるメッセージのインデックスを計算
+                const lastProductIdx = messages.reduce(
+                  (last, m, i) => ((m.products?.length ?? 0) > 0 ? i : last),
+                  -1
+                );
+                return messages.map((msg, index) =>
+                  msg.role === "user" ? (
+                    <div key={index} className="flex justify-end">
+                      <div className="bg-gray-900 text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[75%] text-sm leading-relaxed whitespace-pre-wrap">
+                        {msg.content}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div key={index} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center shrink-0 mt-0.5">
-                      <NaviIcon size={16} />
+                  ) : (
+                    <div key={index}>
+                      {/* テキストメッセージ */}
+                      <div className="flex gap-3">
+                        <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center shrink-0 mt-0.5">
+                          <NaviIcon size={16} />
+                        </div>
+                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap pt-1">
+                          {msg.content}
+                        </p>
+                      </div>
+
+                      {/* 商品カルーセル（メッセージに永続化） */}
+                      {(msg.products?.length ?? 0) > 0 && (
+                        <div className="ml-11 mt-3 space-y-2">
+                          <ProductCarousel
+                            key={`carousel-${index}`}
+                            products={msg.products!}
+                            getBadge={(p, i) => getBadge(p, i, msg.products!)}
+                          />
+
+                          {/* アクションボタンは最後の商品メッセージのみ */}
+                          {index === lastProductIdx && chatPhase === "result" && (
+                            <div className="space-y-2 pt-2">
+                              <button
+                                onClick={() => {
+                                  setChatPhase("refining");
+                                  setCurrentOptions([]);
+                                  addMsg("assistant", "どんな条件を変えますか？（例：予算を上げる、別のブランドにする、など）");
+                                  scrollToBottom();
+                                }}
+                                disabled={loading}
+                                className="w-full rounded-xl bg-white text-sm font-medium hover:bg-gray-50 transition disabled:opacity-40"
+                                style={{
+                                  border: "1.5px solid var(--color-primary)",
+                                  color: "var(--color-text)",
+                                  padding: "14px",
+                                  minHeight: "52px",
+                                }}
+                              >
+                                🔍 条件を追加して絞り込む
+                              </button>
+                              <button
+                                onClick={() => {
+                                  doResetFlow();
+                                  setMessages([]);
+                                  sessionIdRef.current = null;
+                                  setSessionId(null);
+                                }}
+                                className="w-full rounded-xl bg-white text-sm font-medium hover:bg-gray-50 transition"
+                                style={{
+                                  border: "1.5px solid var(--color-border)",
+                                  color: "var(--color-text-sub)",
+                                  padding: "14px",
+                                  minHeight: "52px",
+                                }}
+                              >
+                                🔄 別の商品を探す
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap pt-1">
-                      {msg.content}
-                    </p>
-                  </div>
-                )
-              )}
+                  )
+                );
+              })()}
 
               {/* Claudeが生成した選択肢ボタン */}
               {currentOptions.length > 0 && !loading && (
@@ -672,58 +746,6 @@ export default function ChatPage() {
                 </div>
               )}
 
-              {/* 検索結果：カルーセル表示 */}
-              {(chatPhase === "result" || chatPhase === "refining") && finalProducts.length > 0 && (
-                <div className="space-y-4">
-                  <ProductCarousel
-                    key={carouselKey}
-                    products={finalProducts}
-                    getBadge={(p, i) => getBadge(p, i, finalProducts)}
-                  />
-
-                  {/* 条件追加 / やり直しボタン */}
-                  <div className="space-y-2 pt-2">
-                    <button
-                      onClick={() => {
-                        setChatPhase("refining");
-                        setCurrentOptions([]);
-                        addMsg(
-                          "assistant",
-                          "もちろんです！どんな条件を追加しますか？（例：ホワイトがいい、Sony製がいい、など）"
-                        );
-                        scrollToBottom();
-                      }}
-                      disabled={loading}
-                      className="w-full rounded-xl bg-white text-sm font-medium hover:bg-gray-50 transition disabled:opacity-40"
-                      style={{
-                        border: "1.5px solid var(--color-primary)",
-                        color: "var(--color-text)",
-                        padding: "14px",
-                        minHeight: "52px",
-                      }}
-                    >
-                      🔍 条件を追加して絞り込む
-                    </button>
-                    <button
-                      onClick={() => {
-                        doResetFlow();
-                        setMessages([]);
-                        sessionIdRef.current = null;
-                        setSessionId(null);
-                      }}
-                      className="w-full rounded-xl bg-white text-sm font-medium hover:bg-gray-50 transition"
-                      style={{
-                        border: "1.5px solid var(--color-border)",
-                        color: "var(--color-text-sub)",
-                        padding: "14px",
-                        minHeight: "52px",
-                      }}
-                    >
-                      🔄 別の商品を探す
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* ローディング */}
               {loading && (

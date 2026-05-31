@@ -91,7 +91,7 @@ function TopNavInner() {
       )}
 
       {/* トグル（中央） */}
-      <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+      <div style={{ flex: 1, display: "flex", justifyContent: "center", overflow: "hidden", minWidth: 0 }}>
         {showToggle && (
           <div style={{
             display: "flex",
@@ -99,11 +99,12 @@ function TopNavInner() {
             borderRadius: "999px",
             padding: "3px",
             gap: "2px",
+            flexShrink: 0,
           }}>
             <Link
               href="/chat"
               style={{
-                padding: "6px 20px",
+                padding: "6px 14px",
                 borderRadius: "999px",
                 fontSize: "14px",
                 fontWeight: 600,
@@ -115,6 +116,7 @@ function TopNavInner() {
                 minHeight: "36px",
                 display: "flex",
                 alignItems: "center",
+                whiteSpace: "nowrap",
               }}
             >
               AI検索
@@ -122,7 +124,7 @@ function TopNavInner() {
             <Link
               href="/search"
               style={{
-                padding: "6px 20px",
+                padding: "6px 14px",
                 borderRadius: "999px",
                 fontSize: "14px",
                 fontWeight: 600,
@@ -134,6 +136,7 @@ function TopNavInner() {
                 minHeight: "36px",
                 display: "flex",
                 alignItems: "center",
+                whiteSpace: "nowrap",
               }}
             >
               商品検索
