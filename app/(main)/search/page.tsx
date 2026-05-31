@@ -183,18 +183,22 @@ function Sidebar({
     selectedMaterials.length > 0 ||
     selectedFeatures.length > 0;
 
+  const hasPrices = products.some((p) => p.price > 0);
+
   return (
     <div className="px-3 pt-3 pb-4 space-y-5">
-      {/* 価格帯 */}
-      <div>
-        <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">価格帯</h3>
-        <PriceRangeSlider
-          products={products}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          onChange={onPriceChange}
-        />
-      </div>
+      {/* 価格帯 - 価格データがある場合のみ表示 */}
+      {hasPrices && (
+        <div>
+          <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">価格帯</h3>
+          <PriceRangeSlider
+            products={products}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            onChange={onPriceChange}
+          />
+        </div>
+      )}
 
       {/* ブランド */}
       <CheckList title="ブランド" items={brands} selected={selectedBrands} onToggle={onBrandToggle} />
@@ -538,7 +542,7 @@ function SearchResults({
   const others    = products.filter((p) => p.trustLevel !== "high");
 
   return (
-    <div className="bg-[#f3f4f6] min-h-screen pb-4" style={{ overflowX: "hidden" }}>
+    <div className="bg-[#f3f4f6] min-h-screen pb-4">
       {/* ヘッダー */}
       <div className="bg-white px-4 py-3 border-b border-gray-100">
         <p className="text-sm text-gray-700">
@@ -857,7 +861,7 @@ function SearchContent() {
           padding: "10px 16px",
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" style={{ overflow: "hidden" }}>
           <div
             className="flex-1 flex items-center gap-2"
             style={{
@@ -866,6 +870,7 @@ function SearchContent() {
               padding: "0 14px",
               height: "48px",
               border: "1.5px solid var(--color-border)",
+              minWidth: 0,
             }}
           >
             <svg
@@ -929,44 +934,58 @@ function SearchContent() {
             )}
           </div>
 
-          {/* モバイル：絞り込みボタン */}
+          {/* モバイル：絞り込みボタン（アイコンのみ） */}
           {searched && (
             <button
               type="button"
               onClick={() => setIsFilterOpen(true)}
-              className="md:hidden shrink-0"
+              className="md:hidden"
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                border: `1px solid ${hasActiveFilters ? "#c8a96e" : "#e8e8e4"}`,
-                borderRadius: "20px",
-                background: "white",
-                fontSize: "13px",
+                justifyContent: "center",
+                width: "44px",
+                height: "44px",
+                border: hasActiveFilters ? "1.5px solid #c8a96e" : "1px solid #e8e8e4",
+                borderRadius: "50%",
+                background: hasActiveFilters ? "#fef9f0" : "white",
                 cursor: "pointer",
-                color: hasActiveFilters ? "#1a1a1a" : "#888",
-                fontWeight: hasActiveFilters ? "600" : "400",
+                flexShrink: 0,
+                position: "relative",
               }}
             >
-              <span>⚙️</span>
-              絞り込み
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={hasActiveFilters ? "#c8a96e" : "#666"}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+                <line x1="11" y1="18" x2="13" y2="18" />
+              </svg>
               {hasActiveFilters && (
-                <span style={{
+                <div style={{
+                  position: "absolute",
+                  top: "0px",
+                  right: "0px",
+                  width: "16px",
+                  height: "16px",
                   background: "#c8a96e",
-                  color: "white",
                   borderRadius: "50%",
-                  width: "18px",
-                  height: "18px",
                   fontSize: "10px",
+                  color: "white",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: "700",
-                  flexShrink: 0,
                 }}>
                   {activeFilterCount}
-                </span>
+                </div>
               )}
             </button>
           )}
@@ -985,7 +1004,7 @@ function SearchContent() {
 
       {/* 検索結果 + PC サイドバー */}
       {searched && (
-        <div className="md:flex" style={{ overflowX: "hidden" }}>
+        <div className="md:flex">
           {/* PC サイドバー */}
           <aside
             className="hidden md:flex md:flex-col w-[260px] shrink-0 border-r border-gray-100 sticky self-start bg-white"

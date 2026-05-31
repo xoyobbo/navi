@@ -278,26 +278,27 @@ ${JSON.stringify(searchConditions)}
 
     console.log("抽出された全条件:", extractedConditions)
 
-    // ② 性別・特徴をキーワードに追加
-    let searchKeyword = extractedConditions.keyword || originalKeyword || ""
+    // ② 性別・特徴をキーワードに追加（originalKeywordを絶対に消さない）
+    const searchKeyword = (() => {
+      const base = originalKeyword || ""
+      const extras: string[] = []
+      if (extractedConditions.gender) {
+        extras.push(extractedConditions.gender)
+      }
+      if (extractedConditions.features?.length > 0) {
+        extras.push(...extractedConditions.features.slice(0, 2))
+      }
+      return [base, ...extras].filter(Boolean).join(" ").trim().slice(0, 30)
+    })()
 
-    if (extractedConditions.gender) {
-      searchKeyword = `${searchKeyword} ${extractedConditions.gender}`
-    }
-
-    if (extractedConditions.features?.length > 0) {
-      searchKeyword = `${searchKeyword} ${extractedConditions.features.join(" ")}`
-    }
-
-    console.log("抽出キーワード:", extractedConditions.keyword)
-    console.log("最終検索キーワード:", searchKeyword)
+    console.log("最終キーワード:", searchKeyword)
+    console.log("元キーワード:", originalKeyword)
     console.log("価格範囲:", extractedConditions.minPrice, "〜", extractedConditions.maxPrice)
     console.log("===================")
 
     // ③ 商品検索（4段階フォールバック）
     const searchWithFallback = async (): Promise<Product[]> => {
-      console.log("楽天APIリクエスト:", `keyword=${searchKeyword}&minPrice=${extractedConditions.minPrice}&maxPrice=${extractedConditions.maxPrice}`)
-      // ① 全条件で検索
+      // ① フル条件で検索
       let products = await searchMixed(
         {
           keyword: searchKeyword,
@@ -307,22 +308,36 @@ ${JSON.stringify(searchConditions)}
         30,
         preferredSources
       )
-      if (products.length > 0) return products
+      if (products.length > 0) {
+        console.log("①成功:", products.length)
+        return products
+      }
 
-      console.log("①失敗 → 価格条件を外す")
-      // ② 価格条件を外して再検索
+      // ② 価格条件を外す
+      console.log("②価格条件なしで再検索")
       products = await searchMixed({ keyword: searchKeyword }, 30, preferredSources)
       if (products.length > 0) return products
 
-      console.log("②失敗 → キーワードを短縮")
-      // ③ キーワードを最初の単語だけにする
-      const shortKeyword = searchKeyword.split(/\s+/)[0]
-      products = await searchMixed({ keyword: shortKeyword }, 30, preferredSources)
+      // ③ originalKeywordだけで検索
+      console.log("③元キーワードのみ")
+      products = await searchMixed({ keyword: originalKeyword }, 30, preferredSources)
       if (products.length > 0) return products
 
-      console.log("③失敗 → 元キーワードで検索")
-      // ④ 最終手段：元のキーワードのみ
-      return await searchMixed({ keyword: originalKeyword || shortKeyword }, 30, preferredSources)
+      // ④ キーワードの最初の単語のみ
+      const firstWord = originalKeyword.split(/\s+/)[0]
+      console.log("④最初の単語:", firstWord)
+      return await searchMixed({ keyword: firstWord }, 30, preferredSources)
+    }
+
+    const rawProducts = await searchWithFallback()
+
+    if (rawProducts.length === 0) {
+      console.error("全フォールバック失敗:", originalKeyword)
+      const fallbackProducts = await searchMixed({ keyword: "人気商品" }, 10, preferredSources)
+      return Response.json({
+        message: `「${originalKeyword}」での検索が難しかったため、関連する人気商品をご紹介します。`,
+        products: fallbackProducts
+      })
     }
 
     // 口コミ数・評価でソートして信頼性の高い商品を上位に
@@ -337,7 +352,7 @@ ${JSON.stringify(searchConditions)}
         return scoreB - scoreA;
       });
 
-    const products = sortByTrust(await searchWithFallback())
+    const products = sortByTrust(rawProducts)
 
     // 価格条件を緩めた場合の注記
     const relaxedMessage =
