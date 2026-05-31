@@ -988,8 +988,8 @@ function SearchContent() {
         <div className="md:flex" style={{ overflowX: "hidden" }}>
           {/* PC サイドバー */}
           <aside
-            className="hidden md:block w-[260px] shrink-0 border-r border-gray-100 sticky self-start bg-white"
-            style={{ top: "125px", maxHeight: "calc(100vh - 125px)", display: "flex", flexDirection: "column" }}
+            className="hidden md:flex md:flex-col w-[260px] shrink-0 border-r border-gray-100 sticky self-start bg-white"
+            style={{ top: "125px", maxHeight: "calc(100vh - 125px)" }}
           >
             {/* ヘッダー：メインコンテンツの件数行と高さを揃える */}
             <div className="px-4 py-3 border-b border-gray-100 shrink-0">

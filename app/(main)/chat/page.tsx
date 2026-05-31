@@ -663,9 +663,9 @@ export default function ChatPage() {
                         </p>
                       </div>
 
-                      {/* 商品カルーセル（メッセージに永続化） */}
+                      {/* 商品カルーセル（メッセージに永続化・全幅） */}
                       {(msg.products?.length ?? 0) > 0 && (
-                        <div className="ml-11 mt-3 space-y-2">
+                        <div className="mt-3 space-y-2">
                           <ProductCarousel
                             key={`carousel-${index}`}
                             products={msg.products!}
