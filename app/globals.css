@@ -40,6 +40,10 @@ html, body {
   overscroll-behavior: none;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-text);

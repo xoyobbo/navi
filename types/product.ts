@@ -24,6 +24,7 @@ export type Product = {
   scoreReason?: string;
   reason?: string;
   trustLevel?: "high" | "medium" | "low";
+  totalScore?: number;
   purchaseLinks?: {
     rakuten?: string;
     yahoo?: string;

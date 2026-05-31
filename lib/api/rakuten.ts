@@ -1,6 +1,6 @@
 import type { Product } from "@/types/product";
 import { normalizeKeyword } from "@/lib/search-utils";
-import { calcTrustLevel } from "@/lib/scoring";
+import { calcTrustLevel, calcTotalScore } from "@/lib/scoring";
 
 const validateProduct = (product: Partial<Product>): product is Product =>
   typeof product.id === "string" &&
@@ -82,6 +82,7 @@ function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
     category: String(item.genreId ?? ""),
     availability: item.availability === 1,
     trustLevel: calcTrustLevel(rating, reviewCount),
+    totalScore: calcTotalScore(rating, reviewCount),
   };
 }
 

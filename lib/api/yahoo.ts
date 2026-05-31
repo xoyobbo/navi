@@ -1,5 +1,5 @@
 import type { Product } from "@/types/product";
-import { calcTrustLevel } from "@/lib/scoring";
+import { calcTrustLevel, calcTotalScore } from "@/lib/scoring";
 
 interface YahooSearchParams {
   keyword: string;
@@ -54,6 +54,7 @@ export async function searchYahoo(params: YahooSearchParams): Promise<Product[]>
         category: "",
         availability: true,
         trustLevel: calcTrustLevel(rating, reviewCount),
+        totalScore: calcTotalScore(rating, reviewCount),
       };
     });
   } catch (e) {

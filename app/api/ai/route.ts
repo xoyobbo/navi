@@ -199,6 +199,13 @@ ${JSON.stringify(searchConditions)}
   if (isFinal) {
     if (!message?.trim()) return Response.json({ products: [], message: "キーワードがありません" });
 
+    console.log("=== AI検索デバッグ ===")
+    console.log("受信メッセージ:", message)
+    console.log("元キーワード:", originalKeyword)
+    console.log("蓄積条件:", JSON.stringify(searchConditions, null, 2))
+    console.log("会話履歴件数:", conversationHistory?.length)
+    console.log("isFinal:", isFinal)
+
     // ユーザーのショッピングサイト設定を取得
     let preferredSources = ["rakuten", "yahoo"];
     try {
@@ -225,7 +232,7 @@ ${JSON.stringify(searchConditions)}
 
     const combinedRes = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 600,
+      max_tokens: 800,
       messages: [{
         role: "user",
         content:
@@ -278,10 +285,14 @@ ${JSON.stringify(searchConditions)}
       searchKeyword = `${searchKeyword} ${extractedConditions.features.join(" ")}`
     }
 
+    console.log("抽出キーワード:", extractedConditions.keyword)
     console.log("最終検索キーワード:", searchKeyword)
+    console.log("価格範囲:", extractedConditions.minPrice, "〜", extractedConditions.maxPrice)
+    console.log("===================")
 
     // ③ 商品検索（4段階フォールバック）
     const searchWithFallback = async (): Promise<Product[]> => {
+      console.log("楽天APIリクエスト:", `keyword=${searchKeyword}&minPrice=${extractedConditions.minPrice}&maxPrice=${extractedConditions.maxPrice}`)
       // ① 全条件で検索
       let products = await searchMixed(
         {

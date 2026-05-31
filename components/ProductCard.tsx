@@ -218,6 +218,20 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
               ({product.reviewCount.toLocaleString()}件)
             </span>
           </div>
+          {product.totalScore !== undefined && (
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+              <div style={{ height: "4px", width: "60px", background: "#e8e8e4", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  width: `${product.totalScore}%`,
+                  background: product.totalScore >= 80 ? "#16a34a" : product.totalScore >= 60 ? "#ca8a04" : "#e8e8e4",
+                  borderRadius: "2px",
+                  transition: "width 0.3s",
+                }} />
+              </div>
+              <span style={{ fontSize: "10px", color: "#888" }}>{product.totalScore}</span>
+            </div>
+          )}
           <p className="text-base font-bold text-gray-900">
             ¥{product.price.toLocaleString()}
           </p>

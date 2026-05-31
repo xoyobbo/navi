@@ -301,7 +301,9 @@ export default function ChatPage() {
 
   async function callQuestionAPI(
     message: string,
-    history: ConversationMessage[]
+    history: ConversationMessage[],
+    keyword = "",
+    cond?: Partial<Conditions>
   ): Promise<{ message: string; options: string[]; priceRanges?: PriceRange[] }> {
     const res = await fetch("/api/ai", {
       method: "POST",
@@ -309,6 +311,8 @@ export default function ChatPage() {
       body: JSON.stringify({
         message,
         conversationHistory: history,
+        originalKeyword: keyword,
+        searchConditions: cond ? { minPrice: cond.minPrice, maxPrice: cond.maxPrice } : {},
         isQuestion: true,
       }),
     });
@@ -325,8 +329,17 @@ export default function ChatPage() {
     sessionIdRef.current = null;
     setSessionId(null);
 
-    setOriginalKeyword(keyword);
-    setConditions({ ...INITIAL_CONDITIONS, keyword });
+    // 「〜が欲しい」「おすすめの〜」などの文章から商品名だけを抽出
+    const cleanedKeyword = keyword
+      .replace(/[？?。、！!「」【】]/g, "")
+      .replace(/\d+万円(以内|以上|くらい|程度)?/g, "")
+      .replace(/(おすすめ|人気|が欲しい|を探している|教えてください?|を探して)(の|は|な|よ)?/g, "")
+      .replace(/(が|は|を|に|で)(欲しい|探している|ください|教えて)/g, "")
+      .trim()
+      .slice(0, 30) || keyword;
+
+    setOriginalKeyword(cleanedKeyword);
+    setConditions({ ...INITIAL_CONDITIONS, keyword: cleanedKeyword });
     setChatPhase("questioning");
     setQuestionStep(0);
     setFinalProducts([]);
@@ -343,7 +356,7 @@ export default function ChatPage() {
 
     // Claude に最初の質問を生成させる（messages由来の履歴を渡す）
     const initHistory = prevMessages.map(m => ({ role: m.role, content: m.content }));
-    const { message: naviMsg, options, priceRanges } = await callQuestionAPI(keyword, initHistory);
+    const { message: naviMsg, options, priceRanges } = await callQuestionAPI(keyword, initHistory, cleanedKeyword);
     if (priceRanges) setDynamicPriceRanges(priceRanges);
     addMsg("assistant", naviMsg);
     setCurrentOptions(options);
@@ -472,9 +485,9 @@ export default function ChatPage() {
 
           saveMsg("user", msg);
 
-          // messages由来の履歴を使う（msg は callQuestionAPI 第1引数で渡す）
-          const questionHistory = messages.map(m => ({ role: m.role, content: m.content }));
-          const { message: naviMsg, options } = await callQuestionAPI(msg, questionHistory);
+          // updatedMessages を使って最新のユーザー回答も履歴に含める
+          const questionHistory = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+          const { message: naviMsg, options } = await callQuestionAPI(msg, questionHistory, originalKeyword, newCond);
           addMsg("assistant", naviMsg);
           setCurrentOptions(options);
           saveMsg("assistant", naviMsg);

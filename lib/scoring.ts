@@ -49,6 +49,15 @@ function getScoreReason(total: number): string {
   return "価格重視ならこちらもおすすめ";
 }
 
+export const calcTotalScore = (
+  rating: number,
+  reviewCount: number
+): number => {
+  const ratingScore = (rating / 5) * 50;
+  const reviewScore = (Math.min(reviewCount, 1000) / 1000) * 50;
+  return Math.round(ratingScore + reviewScore);
+};
+
 export function scoreProduct(
   product: Product,
   conditions: { minPrice: number | null; maxPrice: number | null; keyword: string }

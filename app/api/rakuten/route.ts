@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Product } from "@/types/product";
 import { normalizeKeyword } from "@/lib/search-utils";
 import { validateKeyword, validatePrice } from "@/lib/validation";
-import { calcTrustLevel } from "@/lib/scoring";
+import { calcTrustLevel, calcTotalScore } from "@/lib/scoring";
 
 export const maxDuration = 15
 
@@ -83,6 +83,7 @@ function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
     availability: item.availability === 1,
     purchaseLinks: { rakuten: affiliateUrl },
     trustLevel: calcTrustLevel(rating, reviewCount),
+    totalScore: calcTotalScore(rating, reviewCount),
   };
 }
 

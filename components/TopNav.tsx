@@ -17,13 +17,7 @@ function useBackButton() {
   const isBack = isProduct || isSearchResult || isMypage || isSettings;
 
   const handleBack = () => {
-    if (isSearchResult) {
-      router.push("/search");
-    } else if (isProduct) {
-      router.back();
-    } else if (isMypage || isSettings) {
-      router.push("/search");
-    }
+    router.back();
   };
 
   return { isBack, handleBack };

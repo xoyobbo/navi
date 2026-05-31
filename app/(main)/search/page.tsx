@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import FeaturedProductCard from "@/components/FeaturedProductCard";
 import Pagination from "@/components/Pagination";
+import FilterModal, { type FilterState } from "@/components/FilterModal";
+import PriceRangeSlider from "@/components/PriceRangeSlider";
 import { extractBrands } from "@/lib/brand-extractor";
 import { COLOR_MAP } from "@/lib/color-extractor";
 import type { Product } from "@/types/product";
@@ -26,6 +28,7 @@ const CATEGORIES = [
 
 const SORT_OPTIONS = [
   { label: "おすすめ順", value: "standard" },
+  { label: "総合評価順", value: "total_score" },
   { label: "口コミが多い順", value: "review_count_desc" },
   { label: "評価順", value: "rating" },
   { label: "価格が安い順", value: "price_asc" },
@@ -92,6 +95,7 @@ function applySortLocal(products: Product[], sort: string): Product[] {
     case "price_desc":        return [...products].sort((a, b) => b.price - a.price);
     case "rating":            return [...products].sort((a, b) => b.rating - a.rating);
     case "review_count_desc": return [...products].sort((a, b) => b.reviewCount - a.reviewCount);
+    case "total_score":       return [...products].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
     default:                  return products;
   }
 }
@@ -146,15 +150,17 @@ function CheckList({
 // ── サイドバー ────────────────────────────────────────────
 
 function Sidebar({
-  priceRange, onPriceRangeChange,
+  products, minPrice, maxPrice, onPriceChange,
   brands, selectedBrands, onBrandToggle,
   colors, selectedColors, onColorToggle,
   materials, selectedMaterials, onMaterialToggle,
   features, selectedFeatures, onFeatureToggle,
   onReset,
 }: {
-  priceRange: string;
-  onPriceRangeChange: (r: string) => void;
+  products: Product[];
+  minPrice: number | null;
+  maxPrice: number | null;
+  onPriceChange: (min: number | null, max: number | null) => void;
   brands: string[];
   selectedBrands: string[];
   onBrandToggle: (b: string) => void;
@@ -170,7 +176,8 @@ function Sidebar({
   onReset: () => void;
 }) {
   const hasFilters =
-    priceRange !== "" ||
+    minPrice !== null ||
+    maxPrice !== null ||
     selectedBrands.length > 0 ||
     selectedColors.length > 0 ||
     selectedMaterials.length > 0 ||
@@ -181,21 +188,12 @@ function Sidebar({
       {/* 価格帯 */}
       <div>
         <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">価格帯</h3>
-        <div className="space-y-0.5">
-          {PRICE_RANGES.map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => onPriceRangeChange(value)}
-              className={`w-full text-left text-sm px-2 py-1.5 rounded-lg transition ${
-                priceRange === value
-                  ? "bg-red-50 text-red-500 font-medium"
-                  : "text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <PriceRangeSlider
+          products={products}
+          minPrice={minPrice}
+          maxPrice={maxPrice}
+          onChange={onPriceChange}
+        />
       </div>
 
       {/* ブランド */}
@@ -279,7 +277,7 @@ function HScrollSection({
           </button>
         )}
       </div>
-      <div className="overflow-x-auto px-4" style={scrollHide}>
+      <div className="overflow-x-auto px-4 min-w-0" style={scrollHide}>
         <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
           {loading
             ? [...Array(4)].map((_, i) => <CardSkeleton key={i} />)
@@ -428,7 +426,7 @@ function TopBrowse() {
 
       {/* カテゴリアイコン */}
       <div className="bg-white px-4 py-4">
-        <div className="overflow-x-auto" style={scrollHide}>
+        <div className="overflow-x-auto min-w-0" style={scrollHide}>
           <div className="flex gap-4" style={{ width: "max-content" }}>
             {CATEGORIES.map((cat) => (
               <button
@@ -540,7 +538,7 @@ function SearchResults({
   const others    = products.filter((p) => p.trustLevel !== "high");
 
   return (
-    <div className="bg-[#f3f4f6] min-h-screen pb-4">
+    <div className="bg-[#f3f4f6] min-h-screen pb-4" style={{ overflowX: "hidden" }}>
       {/* ヘッダー */}
       <div className="bg-white px-4 py-3 border-b border-gray-100">
         <p className="text-sm text-gray-700">
@@ -553,7 +551,7 @@ function SearchResults({
       </div>
 
       {/* ソートボタン（PC・スマホ共通で常に表示） */}
-      <div className="bg-white px-4 py-2.5 border-b border-gray-100 overflow-x-auto" style={scrollHide}>
+      <div className="bg-white px-4 py-2.5 border-b border-gray-100 overflow-x-auto min-w-0" style={scrollHide}>
         <div className="flex gap-2" style={{ width: "max-content" }}>
           {SORT_OPTIONS.map(({ label, value }) => (
             <button
@@ -635,7 +633,14 @@ function SearchContent() {
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<FilterState>({
+    minPrice: null,
+    maxPrice: null,
+    selectedBrands: [],
+    selectedFeatures: [],
+    sortBy: "standard",
+  });
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -696,6 +701,7 @@ function SearchContent() {
         setSelectedColors([]);
         setSelectedMaterials([]);
         setSelectedFeatures([]);
+        setActiveFilters({ minPrice: null, maxPrice: null, selectedBrands: [], selectedFeatures: [], sortBy: "standard" });
       });
       runSearch(urlQ, 1, "");
     } else {
@@ -754,8 +760,16 @@ function SearchContent() {
     setSelectedColors([]);
     setSelectedMaterials([]);
     setSelectedFeatures([]);
+    setActiveFilters({ minPrice: null, maxPrice: null, selectedBrands: [], selectedFeatures: [], sortBy: "standard" });
     setCurrentPage(1);
     runSearch(urlQ, 1, "");
+  }
+
+  function handleApplyFilters(filters: FilterState) {
+    setActiveFilters(filters);
+    setSort(filters.sortBy);
+    setSelectedBrands(filters.selectedBrands);
+    setSelectedFeatures(filters.selectedFeatures);
   }
 
   function handlePageChange(p: number) {
@@ -766,6 +780,12 @@ function SearchContent() {
 
   const displayProducts = useMemo(() => {
     let filtered = allProducts;
+    if (activeFilters.minPrice !== null) {
+      filtered = filtered.filter((p) => p.price >= activeFilters.minPrice!);
+    }
+    if (activeFilters.maxPrice !== null) {
+      filtered = filtered.filter((p) => p.price <= activeFilters.maxPrice!);
+    }
     if (selectedBrands.length > 0) {
       filtered = filtered.filter((p) =>
         selectedBrands.some((brand) => p.name.toLowerCase().includes(brand.toLowerCase()))
@@ -787,18 +807,27 @@ function SearchContent() {
       );
     }
     return applySortLocal(filtered, sort);
-  }, [allProducts, sort, selectedBrands, selectedColors, selectedMaterials, selectedFeatures]);
+  }, [allProducts, sort, selectedBrands, selectedColors, selectedMaterials, selectedFeatures, activeFilters]);
+
+  const activeFilterCount = [
+    activeFilters.minPrice !== null || activeFilters.maxPrice !== null,
+    activeFilters.selectedBrands.length > 0,
+    activeFilters.sortBy !== "standard",
+  ].filter(Boolean).length;
 
   const hasActiveFilters =
+    activeFilterCount > 0 ||
     priceRange !== "" ||
-    selectedBrands.length > 0 ||
     selectedColors.length > 0 ||
     selectedMaterials.length > 0 ||
     selectedFeatures.length > 0;
 
   const sidebarProps = {
-    priceRange,
-    onPriceRangeChange: handlePriceRangeChange,
+    products: allProducts,
+    minPrice: activeFilters.minPrice,
+    maxPrice: activeFilters.maxPrice,
+    onPriceChange: (min: number | null, max: number | null) =>
+      handleApplyFilters({ ...activeFilters, minPrice: min, maxPrice: max }),
     brands: brandList,
     selectedBrands,
     onBrandToggle: handleBrandToggle,
@@ -904,28 +933,39 @@ function SearchContent() {
           {searched && (
             <button
               type="button"
-              onClick={() => setDrawerOpen(true)}
-              className="md:hidden flex items-center gap-1 shrink-0 whitespace-nowrap"
+              onClick={() => setIsFilterOpen(true)}
+              className="md:hidden shrink-0"
               style={{
-                fontSize: "14px",
-                fontWeight: 500,
-                color: hasActiveFilters ? "var(--color-primary)" : "var(--color-text)",
-                border: hasActiveFilters
-                  ? "1.5px solid var(--color-primary)"
-                  : "1.5px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                padding: "0 12px",
-                height: "48px",
-                background: hasActiveFilters ? "rgba(191,0,0,0.05)" : "white",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                border: `1px solid ${hasActiveFilters ? "#c8a96e" : "#e8e8e4"}`,
+                borderRadius: "20px",
+                background: "white",
+                fontSize: "13px",
+                cursor: "pointer",
+                color: hasActiveFilters ? "#1a1a1a" : "#888",
+                fontWeight: hasActiveFilters ? "600" : "400",
               }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25" />
-              </svg>
+              <span>⚙️</span>
               絞り込み
               {hasActiveFilters && (
-                <span className="ml-1 text-xs font-bold bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                  {selectedBrands.length + selectedColors.length + selectedMaterials.length + selectedFeatures.length + (priceRange ? 1 : 0)}
+                <span style={{
+                  background: "#c8a96e",
+                  color: "white",
+                  borderRadius: "50%",
+                  width: "18px",
+                  height: "18px",
+                  fontSize: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "700",
+                  flexShrink: 0,
+                }}>
+                  {activeFilterCount}
                 </span>
               )}
             </button>
@@ -945,9 +985,9 @@ function SearchContent() {
 
       {/* 検索結果 + PC サイドバー */}
       {searched && (
-        <div className="md:flex">
+        <div className="md:flex" style={{ overflowX: "hidden" }}>
           {/* PC サイドバー */}
-          <aside className="hidden md:block w-[220px] shrink-0 bg-white border-r border-gray-100 sticky top-[108px] self-start max-h-[calc(100vh-108px)] overflow-y-auto">
+          <aside className="hidden md:block w-[260px] shrink-0 bg-white border-r border-gray-100 sticky top-[108px] self-start max-h-[calc(100vh-108px)] overflow-y-auto">
             <Sidebar {...sidebarProps} />
           </aside>
 
@@ -968,35 +1008,14 @@ function SearchContent() {
         </div>
       )}
 
-      {/* モバイル絞り込みドロワー */}
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setDrawerOpen(false)}
-          />
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
-              <h2 className="font-bold text-gray-900">絞り込み</h2>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <Sidebar
-              {...sidebarProps}
-              onPriceRangeChange={(r) => {
-                handlePriceRangeChange(r);
-                setDrawerOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* モバイル絞り込みモーダル */}
+      <FilterModal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        onApply={handleApplyFilters}
+        currentFilters={activeFilters}
+        products={allProducts}
+      />
     </div>
   );
 }

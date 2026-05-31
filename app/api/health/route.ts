@@ -26,8 +26,8 @@ export async function GET() {
   await Promise.allSettled([
     // 楽天 API
     fetch(
-      `https://app.rakutenws.com/services/api/IchibaItem/Search/20220601` +
-      `?applicationId=${process.env.RAKUTEN_APP_ID}&keyword=test&hits=1`
+      `https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401` +
+      `?applicationId=${process.env.RAKUTEN_APP_ID}&accessKey=${process.env.RAKUTEN_ACCESS_KEY}&keyword=test&hits=1`
     ).then((r) => {
       if (r.ok) checks.services.rakuten = true
     }),
