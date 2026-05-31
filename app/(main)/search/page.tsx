@@ -861,7 +861,7 @@ function SearchContent() {
           padding: "10px 16px",
         }}
       >
-        <div className="flex items-center gap-2" style={{ overflow: "hidden" }}>
+        <div className="flex items-center gap-2" style={{ overflow: "clip" }}>
           <div
             className="flex-1 flex items-center gap-2"
             style={{
