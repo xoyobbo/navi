@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import type { Product } from "@/types/product";
 
 const SOURCE_BADGE: Record<string, { label: string; color: string; solid: string }> = {
-  rakuten: { label: "楽天", color: "bg-red-50 text-red-600", solid: "#BF0000" },
-  yahoo:   { label: "Yahoo!", color: "bg-purple-50 text-purple-600", solid: "#FF0033" },
-  amazon:  { label: "Amazon", color: "bg-orange-50 text-orange-600", solid: "#FF9900" },
+  rakuten: { label: "楽天", color: "bg-red-50 text-red-600", solid: "var(--navi-rakuten)" },
+  yahoo:   { label: "Yahoo!", color: "bg-purple-50 text-purple-600", solid: "var(--navi-yahoo)" },
+  amazon:  { label: "Amazon", color: "bg-orange-50 text-orange-600", solid: "var(--navi-amazon)" },
 };
 
 type Props = {
@@ -115,12 +115,29 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
   return (
     <>
     <div
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col cursor-pointer"
-      style={{ opacity: product.trustLevel === "low" ? 0.85 : 1 }}
+      style={{
+        background: "var(--navi-bg-card)",
+        borderRadius: "var(--navi-radius-md)",
+        border: "0.5px solid var(--navi-border)",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        cursor: "pointer",
+        opacity: product.trustLevel === "low" ? 0.85 : 1,
+        transition: "transform 0.15s, box-shadow 0.15s",
+      }}
       onClick={handleCardAreaClick}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
     >
-      {/* 画像: 幅100%・高さ200px固定・object-cover */}
-      <div className="relative h-[200px] flex-shrink-0 bg-gray-50">
+      {/* 画像 */}
+      <div className="relative h-[200px] flex-shrink-0" style={{ background: "#fafaf8" }}>
         {product.image && !imgError ? (
           <Image
             src={product.image}
@@ -143,7 +160,21 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
         {/* お気に入りボタン */}
         <button
           onClick={handleFav}
-          className="absolute top-2 right-2 w-10 h-10 flex items-center justify-center rounded-full bg-white/90 backdrop-blur shadow-sm transition"
+          style={{
+            position: "absolute",
+            top: "8px",
+            right: "8px",
+            width: "36px",
+            height: "36px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.9)",
+            backdropFilter: "blur(4px)",
+            border: "none",
+            cursor: "pointer",
+          }}
           aria-label={fav ? "お気に入り解除" : "お気に入り追加"}
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={fav ? "#EF4444" : "none"} stroke={fav ? "#EF4444" : "#9CA3AF"} strokeWidth={1.8} className="w-4 h-4">
@@ -151,97 +182,129 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
           </svg>
         </button>
         {/* ソースバッジ */}
-        <span
-          className="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded"
-          style={{ background: sourceBadge.solid, color: "white" }}
-        >
+        <span style={{
+          position: "absolute",
+          bottom: "8px",
+          left: "8px",
+          background: sourceBadge.solid,
+          color: "white",
+          fontSize: "9px",
+          fontWeight: "700",
+          padding: "2px 6px",
+          borderRadius: "4px",
+          letterSpacing: "0.03em",
+        }}>
           {sourceBadge.label}
         </span>
         {/* バッジ（badge prop 優先、なければスコア点数） */}
         {badge ? (
-          <span className={`absolute bottom-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full shadow ${
-            badge.startsWith("⭐") ? "bg-yellow-400 text-white" :
-            badge.startsWith("💰") ? "bg-green-500 text-white" :
-            "bg-sky-500 text-white"
-          }`}>
+          <span style={{
+            position: "absolute",
+            top: "8px",
+            left: "8px",
+            background: badge.startsWith("⭐") ? "var(--navi-gold)" : badge.startsWith("💰") ? "#16a34a" : "var(--navi-black)",
+            color: badge.startsWith("⭐") ? "#1a0e00" : "white",
+            fontSize: "9px",
+            fontWeight: "700",
+            padding: "2px 6px",
+            borderRadius: "4px",
+            letterSpacing: "0.05em",
+          }}>
             {badge}
           </span>
         ) : product.score !== undefined ? (
-          <span className={`absolute bottom-2 right-2 text-xs font-bold px-2 py-0.5 rounded-full shadow ${
-            product.score >= 80 ? "bg-yellow-400 text-white" :
-            product.score >= 60 ? "bg-blue-500 text-white" :
-            "bg-gray-400 text-white"
-          }`}>
+          <span style={{
+            position: "absolute",
+            top: "8px",
+            left: "8px",
+            background: product.score >= 80 ? "var(--navi-gold)" : product.score >= 60 ? "var(--navi-black)" : "rgba(0,0,0,0.3)",
+            color: product.score >= 80 ? "#1a0e00" : "white",
+            fontSize: "9px",
+            fontWeight: "700",
+            padding: "2px 6px",
+            borderRadius: "4px",
+          }}>
             {product.score}点
           </span>
         ) : null}
       </div>
 
       {/* テキスト情報 */}
-      <div className="p-3 flex flex-col flex-1">
-        {/* 商品名: 2行固定 */}
-        <p
-          className="text-sm font-medium text-gray-800 leading-snug"
-          style={{
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            minHeight: "2.5rem",
-          }}
-        >
+      <div style={{ padding: "10px 10px 12px", display: "flex", flexDirection: "column", flex: 1 }}>
+        {/* 商品名 */}
+        <p style={{
+          fontSize: "12px",
+          lineHeight: "1.5",
+          color: "var(--navi-text)",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          marginBottom: "6px",
+          fontWeight: "400",
+          letterSpacing: "0.01em",
+          minHeight: "2.25rem",
+        }}>
           {product.name}
         </p>
 
         {reason && (
-          <p className="text-[11px] text-sky-600 bg-sky-50 rounded-lg px-2 py-1 leading-snug mt-1.5">
+          <p style={{ fontSize: "11px", color: "var(--navi-gold)", background: "var(--navi-gold-light)", borderRadius: "6px", padding: "4px 8px", lineHeight: "1.4", marginBottom: "4px" }}>
             {reason}
           </p>
         )}
         {!reason && product.reason && (
-          <p className="text-[11px] text-gray-500 mt-1.5 leading-snug flex items-start gap-1">
-            <span>💬</span><span>{product.reason}</span>
+          <p style={{ fontSize: "11px", color: "var(--navi-text-sub)", marginBottom: "4px", lineHeight: "1.4" }}>
+            {product.reason}
           </p>
         )}
         {!reason && !product.reason && product.scoreReason && (
-          <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">{product.scoreReason}</p>
+          <p style={{ fontSize: "11px", color: "var(--navi-text-hint)", marginBottom: "4px", lineHeight: "1.4" }}>{product.scoreReason}</p>
         )}
 
-        {/* 価格・評価エリア: カード下部に固定配置 */}
-        <div className="mt-auto pt-2 flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5 flex-wrap">
+        {/* 価格・評価エリア */}
+        <div style={{ marginTop: "auto", paddingTop: "6px", display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
             <StarRating rating={product.rating} />
-            <span className="text-xs font-medium text-gray-600">
+            <span style={{ fontSize: "11px", color: "var(--navi-text-sub)", fontWeight: "500" }}>
               {product.rating > 0 ? product.rating.toFixed(1) : "—"}
             </span>
-            <span className="text-xs text-gray-400">
-              ({product.reviewCount.toLocaleString()}件)
+            <span style={{ fontSize: "10px", color: "var(--navi-text-hint)" }}>
+              ({product.reviewCount.toLocaleString()})
             </span>
           </div>
           {product.totalScore !== undefined && (
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
-              <div style={{ height: "4px", width: "60px", background: "#e8e8e4", borderRadius: "2px", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              <div style={{ height: "3px", width: "60px", background: "var(--navi-border)", borderRadius: "2px", overflow: "hidden" }}>
                 <div style={{
                   height: "100%",
                   width: `${product.totalScore}%`,
-                  background: product.totalScore >= 80 ? "#16a34a" : product.totalScore >= 60 ? "#ca8a04" : "#e8e8e4",
+                  background: product.totalScore >= 80 ? "#16a34a" : product.totalScore >= 60 ? "var(--navi-gold)" : "var(--navi-border-strong)",
                   borderRadius: "2px",
                   transition: "width 0.3s",
                 }} />
               </div>
-              <span style={{ fontSize: "10px", color: "#888" }}>{product.totalScore}</span>
+              <span style={{ fontSize: "10px", color: "var(--navi-text-hint)" }}>{product.totalScore}</span>
             </div>
           )}
-          <p className="text-base font-bold text-gray-900">
+          <p style={{ fontSize: "16px", fontWeight: "700", color: "var(--navi-price)", letterSpacing: "-0.01em" }}>
             ¥{product.price.toLocaleString()}
           </p>
           <button
             onClick={handlePurchaseClick}
-            className="w-full text-center text-sm font-semibold text-white transition rounded-xl"
             style={{
-              background: "var(--color-primary)",
-              padding: "11px 8px",
-              minHeight: "44px",
+              width: "100%",
+              textAlign: "center",
+              fontSize: "13px",
+              fontWeight: "600",
+              color: "white",
+              background: "var(--navi-black)",
+              border: "none",
+              borderRadius: "var(--navi-radius-sm)",
+              padding: "10px 8px",
+              minHeight: "40px",
+              cursor: "pointer",
+              letterSpacing: "0.02em",
             }}
           >
             詳細を見る
@@ -277,11 +340,18 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
                 if (win) win.location.href = `https://www.amazon.co.jp/s?k=${encodeURIComponent(product.name.slice(0, 20))}&tag=${id}`;
               }
             }}
-            className="w-full text-center text-xs font-semibold text-white transition rounded-xl"
             style={{
-              background: "var(--color-amazon)",
-              padding: "11px 8px",
-              minHeight: "44px",
+              width: "100%",
+              textAlign: "center",
+              fontSize: "12px",
+              fontWeight: "600",
+              color: "#1a0e00",
+              background: "var(--navi-amazon)",
+              border: "none",
+              borderRadius: "var(--navi-radius-sm)",
+              padding: "10px 8px",
+              minHeight: "40px",
+              cursor: "pointer",
             }}
           >
             Amazonで探す
@@ -291,14 +361,20 @@ export default function ProductCard({ product, reason, badge, onFavorite, isFavo
             <button
               onClick={(e) => { e.stopPropagation(); onCompare(product); }}
               disabled={compareDisabled && !isComparing}
-              className={`w-full text-center text-xs font-medium rounded-xl border transition ${
-                isComparing
-                  ? "bg-sky-50 border-sky-400 text-sky-600"
-                  : compareDisabled
-                  ? "border-gray-100 text-gray-300 cursor-not-allowed bg-gray-50"
-                  : "border-gray-200 text-gray-500 hover:border-sky-400 hover:text-sky-600"
-              }`}
-              style={{ minHeight: "40px", padding: "8px" }}
+              style={{
+                width: "100%",
+                textAlign: "center",
+                fontSize: "12px",
+                fontWeight: "500",
+                color: isComparing ? "var(--navi-black)" : compareDisabled ? "var(--navi-text-hint)" : "var(--navi-text-sub)",
+                background: "transparent",
+                border: `0.5px solid ${isComparing ? "var(--navi-border-strong)" : "var(--navi-border)"}`,
+                borderRadius: "var(--navi-radius-sm)",
+                padding: "8px",
+                minHeight: "36px",
+                cursor: compareDisabled && !isComparing ? "not-allowed" : "pointer",
+                opacity: compareDisabled && !isComparing ? 0.4 : 1,
+              }}
             >
               {isComparing ? "✓ 比較中" : "＋ 比較する"}
             </button>

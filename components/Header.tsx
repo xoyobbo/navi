@@ -3,66 +3,153 @@
 import { SignInButton, SignOutButton, useAuth, useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const { isSignedIn } = useAuth();
   const { user } = useUser();
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(href + "/");
+  }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-        {/* 左側：プラットフォームアイコン + ロゴ */}
-        <div className="flex items-center gap-3">
-          {/* 横断検索プラットフォームバッジ */}
-          <div className="flex items-center gap-1">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold text-red-600">楽</span>
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-100 text-[10px] font-bold text-purple-600">Y!</span>
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-700">A</span>
-          </div>
-          {/* ロゴ */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="white"
-                className="h-5 w-5"
-              >
-                <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" />
-                <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z" />
-              </svg>
-            </span>
-            <span className="text-lg font-bold text-gray-900">Navi</span>
-          </Link>
-        </div>
+    <header style={{
+      position: "sticky",
+      top: 0,
+      zIndex: 100,
+      background: "rgba(247,246,243,0.85)",
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
+      borderBottom: "0.5px solid var(--navi-border)",
+      padding: "0 16px",
+      height: "56px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "12px",
+    }}>
 
-        {/* 右側：ログイン状態による切り替え */}
+      {/* ロゴ */}
+      <Link href="/chat" style={{
+        display: "flex",
+        flexDirection: "column",
+        textDecoration: "none",
+        flexShrink: 0,
+      }}>
+        <span style={{
+          fontSize: "18px",
+          fontWeight: "700",
+          color: "var(--navi-black)",
+          letterSpacing: "0.06em",
+          lineHeight: 1,
+        }}>
+          Navi
+        </span>
+        <span style={{
+          fontSize: "9px",
+          color: "var(--navi-gold)",
+          letterSpacing: "0.12em",
+          fontWeight: "500",
+        }}>
+          AI SHOPPING
+        </span>
+      </Link>
+
+      {/* タブ */}
+      <div style={{
+        display: "flex",
+        background: "rgba(0,0,0,0.05)",
+        borderRadius: "20px",
+        padding: "3px",
+        gap: "2px",
+      }}>
+        {[
+          { href: "/chat", label: "AI検索" },
+          { href: "/search", label: "商品検索" },
+        ].map((tab) => (
+          <Link key={tab.href} href={tab.href} style={{
+            padding: "6px 14px",
+            borderRadius: "17px",
+            fontSize: "13px",
+            fontWeight: isActive(tab.href) ? "600" : "400",
+            background: isActive(tab.href) ? "white" : "transparent",
+            color: isActive(tab.href) ? "var(--navi-black)" : "var(--navi-text-sub)",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+            transition: "all 0.2s",
+            boxShadow: isActive(tab.href) ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+          }}>
+            {tab.label}
+          </Link>
+        ))}
+      </div>
+
+      {/* 右エリア */}
+      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
         {isSignedIn ? (
-          <div className="flex items-center gap-3">
-            {/* ユーザーアイコン */}
-            {user?.imageUrl ? (
-              <Image
-                src={user.imageUrl}
-                alt={user.fullName ?? "ユーザー"}
-                width={32}
-                height={32}
-                className="h-8 w-8 rounded-full object-cover ring-2 ring-sky-100"
-              />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sm font-medium text-sky-600">
-                {user?.firstName?.[0] ?? "U"}
-              </div>
-            )}
-            {/* ログアウト */}
-            <SignOutButton>
-              <button className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100">
-                ログアウト
-              </button>
-            </SignOutButton>
-          </div>
+          <>
+            <Link href="/mypage/favorites" style={{
+              width: "40px",
+              height: "40px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              color: "var(--navi-text-sub)",
+              textDecoration: "none",
+              fontSize: "18px",
+            }}>
+              ♡
+            </Link>
+            <Link href="/mypage" style={{
+              width: "40px",
+              height: "40px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              textDecoration: "none",
+            }}>
+              {user?.imageUrl ? (
+                <Image
+                  src={user.imageUrl}
+                  alt={user.fullName ?? "ユーザー"}
+                  width={28}
+                  height={28}
+                  style={{ borderRadius: "50%", objectFit: "cover" }}
+                />
+              ) : (
+                <span style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  background: "var(--navi-black)",
+                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                }}>
+                  {user?.firstName?.[0] ?? "U"}
+                </span>
+              )}
+            </Link>
+          </>
         ) : (
           <SignInButton mode="redirect">
-            <button className="rounded-lg bg-sky-500 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-600">
+            <button style={{
+              background: "var(--navi-black)",
+              color: "white",
+              border: "none",
+              borderRadius: "var(--navi-radius-sm)",
+              padding: "8px 16px",
+              fontSize: "13px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}>
               ログイン
             </button>
           </SignInButton>

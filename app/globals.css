@@ -1,25 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #1a1a1a;
-  --color-primary: #1a1a1a;
-  --color-accent: #c8a96e;
-  --color-accent-light: #e8d5b0;
-  --color-bg: #f5f5f5;
-  --color-surface: #ffffff;
-  --color-muted: #f5f5f3;
-  --color-border: #e8e8e4;
-  --color-text: #1a1a1a;
-  --color-text-sub: #888888;
-  --color-rakuten: #BF0000;
-  --color-yahoo: #FF0033;
-  --color-amazon: #FF9900;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  /* Navi デザインシステム */
+  --navi-black: #1a1a1a;
+  --navi-black-soft: #2d2d2d;
+  --navi-white: #ffffff;
+  --navi-bg: #f7f6f3;
+  --navi-bg-card: #ffffff;
+  --navi-border: rgba(0,0,0,0.08);
+  --navi-border-strong: rgba(0,0,0,0.15);
+
+  --navi-gold: #c8a96e;
+  --navi-gold-light: #f5edd8;
+
+  --navi-text: #1a1a1a;
+  --navi-text-sub: #6b6b6b;
+  --navi-text-hint: #a0a0a0;
+
+  --navi-price: #cc0000;
+  --navi-rakuten: #BF0000;
+  --navi-yahoo: #FF0033;
+  --navi-amazon: #FF9900;
+
+  --navi-radius-sm: 8px;
+  --navi-radius-md: 12px;
+  --navi-radius-lg: 16px;
+  --navi-radius-xl: 24px;
+
+  /* 後方互換エイリアス */
+  --background: var(--navi-white);
+  --foreground: var(--navi-black);
+  --color-primary: var(--navi-black);
+  --color-accent: var(--navi-gold);
+  --color-accent-light: var(--navi-gold-light);
+  --color-bg: var(--navi-bg);
+  --color-surface: var(--navi-bg-card);
+  --color-muted: #f7f6f3;
+  --color-border: var(--navi-border);
+  --color-text: var(--navi-text);
+  --color-text-sub: var(--navi-text-sub);
+  --color-rakuten: var(--navi-rakuten);
+  --color-yahoo: var(--navi-yahoo);
+  --color-amazon: var(--navi-amazon);
+  --radius-sm: var(--navi-radius-sm);
+  --radius-md: var(--navi-radius-md);
+  --radius-lg: var(--navi-radius-lg);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
   --nav-top-h: 56px;
   --nav-bottom-h: 56px;
 }
@@ -46,12 +74,17 @@ html, body {
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+  font-family:
+    -apple-system,
+    "Noto Sans JP",
+    "Hiragino Sans",
+    sans-serif;
+  background: var(--navi-bg);
+  color: var(--navi-text);
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* デスクトップではBottomNavなし */
@@ -69,4 +102,50 @@ button {
 button:active {
   opacity: 0.72;
   transform: scale(0.97);
+}
+
+/* ── ボタン共通クラス ── */
+.btn-primary {
+  background: var(--navi-black);
+  color: white;
+  border: none;
+  border-radius: var(--navi-radius-sm);
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.15s;
+}
+.btn-primary:active {
+  opacity: 0.8;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--navi-text-sub);
+  border: 0.5px solid var(--navi-border-strong);
+  border-radius: var(--navi-radius-sm);
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 400;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s;
+}
+.btn-secondary:active {
+  background: rgba(0,0,0,0.03);
+}
+
+.btn-gold {
+  background: var(--navi-gold);
+  color: #1a0e00;
+  border: none;
+  border-radius: var(--navi-radius-sm);
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
 }

@@ -579,26 +579,26 @@ export default function ChatPage() {
       {/* チャットエリア */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* スマホ用ヘッダー */}
-        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-gray-100 flex-shrink-0">
+        <div className="md:hidden flex-shrink-0" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", borderBottom: "0.5px solid var(--navi-border)" }}>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition"
+            style={{ padding: "8px", borderRadius: "8px", background: "none", border: "none", cursor: "pointer", color: "var(--navi-text-sub)" }}
             aria-label="履歴を開く"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-5 h-5 text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-gray-700 truncate">
+          <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--navi-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {messages.length > 0 ? "チャット" : "Navi AI検索"}
           </span>
           {messages.length > 0 && (
             <button
               onClick={handleNewChat}
-              className="ml-auto p-1.5 rounded-lg hover:bg-gray-100 transition"
+              style={{ marginLeft: "auto", padding: "6px", borderRadius: "8px", background: "none", border: "none", cursor: "pointer", color: "var(--navi-text-sub)" }}
               aria-label="新しいチャット"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
             </button>
@@ -614,21 +614,45 @@ export default function ChatPage() {
           {messages.length === 0 && chatPhase === "idle" ? (
             /* ウェルカム画面 */
             <div className="flex flex-col items-center justify-center h-full px-4 gap-8">
-              <div className="text-center space-y-3">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-sky-500 shadow-lg mx-auto">
-                  <NaviIcon size={32} />
+              <div className="text-center" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                <div style={{
+                  width: "64px",
+                  height: "64px",
+                  borderRadius: "50%",
+                  background: "var(--navi-black)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px",
+                  color: "var(--navi-gold)",
+                  fontWeight: "700",
+                  letterSpacing: "0.05em",
+                }}>
+                  N
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 style={{ fontSize: "22px", fontWeight: "700", color: "var(--navi-text)", letterSpacing: "0.01em" }}>
                   {name ? `こんにちは、${name}さん` : "Naviへようこそ"}
                 </h1>
-                <p className="text-gray-400 text-sm">商品名・カテゴリを教えてください！</p>
+                <p style={{ color: "var(--navi-text-hint)", fontSize: "14px" }}>商品名・カテゴリを教えてください！</p>
               </div>
               <div className="grid grid-cols-2 gap-3 w-full max-w-xl">
                 {SUGGESTED_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
                     onClick={() => handleSubmit(prompt)}
-                    className="text-left p-4 rounded-2xl border border-gray-200 bg-white hover:border-sky-300 hover:bg-sky-50 transition text-sm text-gray-600 leading-snug shadow-sm"
+                    style={{
+                      textAlign: "left",
+                      padding: "16px",
+                      borderRadius: "var(--navi-radius-md)",
+                      border: "0.5px solid var(--navi-border-strong)",
+                      background: "var(--navi-bg-card)",
+                      fontSize: "13px",
+                      color: "var(--navi-text-sub)",
+                      lineHeight: "1.5",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                      fontFamily: "inherit",
+                    }}
                   >
                     {prompt}
                   </button>
@@ -646,21 +670,55 @@ export default function ChatPage() {
                 );
                 return messages.map((msg, index) =>
                   msg.role === "user" ? (
-                    <div key={index} className="flex justify-end">
-                      <div className="bg-gray-900 text-white rounded-2xl rounded-tr-sm px-4 py-3 max-w-[75%] text-sm leading-relaxed whitespace-pre-wrap">
+                    <div key={index} style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <div style={{
+                        background: "var(--navi-black)",
+                        color: "white",
+                        borderRadius: "18px 18px 4px 18px",
+                        padding: "12px 16px",
+                        maxWidth: "75%",
+                        fontSize: "15px",
+                        lineHeight: "1.6",
+                        letterSpacing: "0.01em",
+                        whiteSpace: "pre-wrap",
+                      }}>
                         {msg.content}
                       </div>
                     </div>
                   ) : (
                     <div key={index}>
                       {/* テキストメッセージ */}
-                      <div className="flex gap-3">
-                        <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center shrink-0 mt-0.5">
-                          <NaviIcon size={16} />
+                      <div style={{ display: "flex", gap: "12px" }}>
+                        <div style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          background: "var(--navi-black)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "14px",
+                          color: "var(--navi-gold)",
+                          fontWeight: "700",
+                          letterSpacing: "0.05em",
+                          flexShrink: 0,
+                        }}>
+                          N
                         </div>
-                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap pt-1">
+                        <div style={{
+                          background: "var(--navi-bg-card)",
+                          border: "0.5px solid var(--navi-border)",
+                          borderRadius: "4px 18px 18px 18px",
+                          padding: "12px 16px",
+                          maxWidth: "75%",
+                          fontSize: "15px",
+                          lineHeight: "1.6",
+                          letterSpacing: "0.01em",
+                          color: "var(--navi-text)",
+                          whiteSpace: "pre-wrap",
+                        }}>
                           {msg.content}
-                        </p>
+                        </div>
                       </div>
 
                       {/* 商品カルーセル（メッセージに永続化・全幅） */}
@@ -674,7 +732,7 @@ export default function ChatPage() {
 
                           {/* アクションボタンは最後の商品メッセージのみ */}
                           {index === lastProductIdx && chatPhase === "result" && (
-                            <div className="space-y-2 pt-2">
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingTop: "8px" }}>
                               <button
                                 onClick={() => {
                                   setChatPhase("refining");
@@ -683,15 +741,22 @@ export default function ChatPage() {
                                   scrollToBottom();
                                 }}
                                 disabled={loading}
-                                className="w-full rounded-xl bg-white text-sm font-medium hover:bg-gray-50 transition disabled:opacity-40"
                                 style={{
-                                  border: "1.5px solid var(--color-primary)",
-                                  color: "var(--color-text)",
+                                  width: "100%",
+                                  borderRadius: "var(--navi-radius-sm)",
+                                  background: "var(--navi-bg-card)",
+                                  fontSize: "13px",
+                                  fontWeight: "500",
+                                  color: "var(--navi-text)",
+                                  border: "0.5px solid var(--navi-border-strong)",
                                   padding: "14px",
-                                  minHeight: "52px",
+                                  minHeight: "48px",
+                                  cursor: "pointer",
+                                  opacity: loading ? 0.4 : 1,
+                                  fontFamily: "inherit",
                                 }}
                               >
-                                🔍 条件を追加して絞り込む
+                                条件を追加して絞り込む
                               </button>
                               <button
                                 onClick={() => {
@@ -700,15 +765,21 @@ export default function ChatPage() {
                                   sessionIdRef.current = null;
                                   setSessionId(null);
                                 }}
-                                className="w-full rounded-xl bg-white text-sm font-medium hover:bg-gray-50 transition"
                                 style={{
-                                  border: "1.5px solid var(--color-border)",
-                                  color: "var(--color-text-sub)",
+                                  width: "100%",
+                                  borderRadius: "var(--navi-radius-sm)",
+                                  background: "transparent",
+                                  fontSize: "13px",
+                                  fontWeight: "400",
+                                  color: "var(--navi-text-sub)",
+                                  border: "0.5px solid var(--navi-border)",
                                   padding: "14px",
-                                  minHeight: "52px",
+                                  minHeight: "48px",
+                                  cursor: "pointer",
+                                  fontFamily: "inherit",
                                 }}
                               >
-                                🔄 別の商品を探す
+                                別の商品を探す
                               </button>
                             </div>
                           )}
@@ -721,22 +792,41 @@ export default function ChatPage() {
 
               {/* Claudeが生成した選択肢ボタン */}
               {currentOptions.length > 0 && !loading && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center shrink-0 mt-0.5">
-                    <NaviIcon size={16} />
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <div style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: "var(--navi-black)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "14px",
+                    color: "var(--navi-gold)",
+                    fontWeight: "700",
+                    flexShrink: 0,
+                  }}>
+                    N
                   </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", paddingTop: "4px" }}>
                     {currentOptions.map((opt) => (
                       <button
                         key={opt}
                         onClick={() => handleSubmit(opt)}
                         disabled={loading}
-                        className="px-4 text-sm bg-white border rounded-2xl disabled:opacity-40 transition font-medium"
                         style={{
-                          borderColor: "var(--color-primary)",
-                          color: "var(--color-primary)",
-                          minHeight: "44px",
-                          padding: "10px 16px",
+                          padding: "10px 18px",
+                          background: "var(--navi-bg-card)",
+                          border: "0.5px solid var(--navi-border-strong)",
+                          borderRadius: "20px",
+                          fontSize: "14px",
+                          color: "var(--navi-text)",
+                          cursor: "pointer",
+                          fontWeight: "400",
+                          letterSpacing: "0.01em",
+                          transition: "all 0.15s",
+                          opacity: loading ? 0.4 : 1,
+                          fontFamily: "inherit",
                         }}
                       >
                         {opt}
@@ -746,12 +836,23 @@ export default function ChatPage() {
                 </div>
               )}
 
-
               {/* ローディング */}
               {loading && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center shrink-0">
-                    <NaviIcon size={16} />
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <div style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: "var(--navi-black)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "14px",
+                    color: "var(--navi-gold)",
+                    fontWeight: "700",
+                    flexShrink: 0,
+                  }}>
+                    N
                   </div>
                   <TypingDots />
                 </div>
@@ -763,9 +864,9 @@ export default function ChatPage() {
         </div>
 
         {/* 入力バー */}
-        <div className="border-t border-gray-100 bg-white px-4 py-3 flex-shrink-0">
+        <div style={{ borderTop: "0.5px solid var(--navi-border)", background: "var(--navi-bg)", padding: "12px 16px", flexShrink: 0 }}>
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-3">
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -794,35 +895,47 @@ export default function ChatPage() {
                   height: "44px",
                   minHeight: "44px",
                   maxHeight: "116px",
-                  padding: "10px 16px",
-                  border: "1.5px solid var(--color-border)",
+                  padding: "12px 16px",
+                  border: "0.5px solid var(--navi-border-strong)",
                   borderRadius: "24px",
-                  fontSize: "16px",
-                  lineHeight: "24px",
+                  fontSize: "15px",
+                  lineHeight: "1.5",
                   resize: "none",
                   outline: "none",
                   overflowY: "auto",
-                  background: "var(--color-bg)",
+                  background: "var(--navi-bg-card)",
                   fontFamily: "inherit",
                   display: "block",
                   width: "100%",
                   boxSizing: "border-box",
                   transition: "height 0.1s ease",
-                  color: "var(--color-text)",
+                  color: "var(--navi-text)",
                 }}
               />
               <button
                 onClick={() => handleSubmit()}
                 disabled={!input.trim() || loading}
-                className="w-11 h-11 flex items-center justify-center rounded-full disabled:opacity-30 transition shrink-0"
-                style={{ background: input.trim() ? "var(--color-primary)" : "var(--color-border)" }}
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "50%",
+                  background: input.trim() ? "var(--navi-black)" : "rgba(0,0,0,0.08)",
+                  color: "white",
+                  border: "none",
+                  fontSize: "18px",
+                  flexShrink: 0,
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                  opacity: (!input.trim() || loading) ? 0.4 : 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-4 h-4">
-                  <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-                </svg>
+                ↑
               </button>
             </div>
-            <p className="text-center text-xs text-gray-400 mt-2">
+            <p style={{ textAlign: "center", fontSize: "11px", color: "var(--navi-text-hint)", marginTop: "8px" }}>
               Enter で送信 / Shift+Enter で改行
             </p>
           </div>

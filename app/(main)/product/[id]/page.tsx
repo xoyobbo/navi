@@ -309,12 +309,12 @@ export default function ProductDetailPage() {
 
   if (productLoading) {
     return (
-      <div className="min-h-screen bg-white animate-pulse p-4 space-y-4">
-        <div className="h-8 bg-gray-100 rounded-xl w-1/3" />
-        <div className="aspect-square bg-gray-100 rounded-2xl" />
-        <div className="h-6 bg-gray-100 rounded w-2/3" />
-        <div className="h-4 bg-gray-100 rounded w-1/4" />
-        <div className="h-10 bg-gray-100 rounded-2xl" />
+      <div className="min-h-screen animate-pulse p-4 space-y-4" style={{ background: "var(--navi-bg)" }}>
+        <div className="h-8 rounded-xl w-1/3" style={{ background: "var(--navi-border)" }} />
+        <div className="aspect-square rounded-2xl" style={{ background: "var(--navi-border)" }} />
+        <div className="h-6 rounded w-2/3" style={{ background: "var(--navi-border)" }} />
+        <div className="h-4 rounded w-1/4" style={{ background: "var(--navi-border)" }} />
+        <div className="h-10 rounded-2xl" style={{ background: "var(--navi-border)" }} />
       </div>
     );
   }
@@ -372,12 +372,24 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="min-h-screen" style={{ background: "var(--navi-bg)" }}>
       {/* 戻るボタンバー */}
-      <div className="sticky top-14 z-20 bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-3">
+      <div style={{
+        position: "sticky",
+        top: "var(--nav-top-h)",
+        zIndex: 20,
+        background: "rgba(247,246,243,0.85)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderBottom: "0.5px solid var(--navi-border)",
+        padding: "10px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+      }}>
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1 text-sky-500 shrink-0"
+          style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--navi-text-sub)", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -389,9 +401,9 @@ export default function ProductDetailPage() {
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
-          <span className="text-sm font-medium">戻る</span>
+          <span style={{ fontSize: "13px", fontWeight: "500" }}>戻る</span>
         </button>
-        <p className="text-sm font-semibold text-gray-700 truncate">{product.name}</p>
+        <p style={{ fontSize: "13px", fontWeight: "500", color: "var(--navi-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{product.name}</p>
       </div>
 
       {/* 2カラムレイアウト（md以上） */}
@@ -422,90 +434,109 @@ export default function ProductDetailPage() {
         {/* 右：商品情報 */}
         <div className="px-4 pt-5 md:px-0 md:pt-0 space-y-4">
           {/* ソースバッジ */}
-          <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-full ${badge.color}`}>
+          <span style={{
+            display: "inline-block",
+            fontSize: "10px",
+            fontWeight: "700",
+            padding: "2px 8px",
+            borderRadius: "4px",
+            background: badge.label === "楽天" ? "var(--navi-rakuten)" : badge.label === "Yahoo!" ? "var(--navi-yahoo)" : "var(--navi-amazon)",
+            color: "white",
+            letterSpacing: "0.03em",
+          }}>
             {badge.label}
           </span>
 
           {/* 商品名 */}
-          <h1
-            className="text-base font-bold text-gray-900 leading-snug"
-            style={{
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+          <h1 style={{
+            fontSize: "16px",
+            fontWeight: "600",
+            color: "var(--navi-text)",
+            lineHeight: "1.5",
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            letterSpacing: "0.01em",
+          }}>
             {product.name}
           </h1>
 
           {/* 評価 */}
           <div className="flex items-center gap-2">
             <StarRating rating={product.rating} />
-            <span className="text-xs text-gray-500">
+            <span style={{ fontSize: "12px", color: "var(--navi-text-sub)" }}>
               {product.rating.toFixed(1)}（{product.reviewCount.toLocaleString()}件）
             </span>
           </div>
 
           {/* 価格 */}
-          <p className="text-3xl font-bold text-red-500">
+          <p style={{ fontSize: "28px", fontWeight: "700", color: "var(--navi-price)", letterSpacing: "-0.02em" }}>
             ¥{product.price.toLocaleString()}
-            <span className="text-sm font-normal text-gray-400 ml-1">（税込）</span>
+            <span style={{ fontSize: "13px", fontWeight: "400", color: "var(--navi-text-hint)", marginLeft: "4px" }}>（税込）</span>
           </p>
 
           {/* NAVIスコア */}
           {product.score !== undefined && (
-            <span
-              className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full ${
-                product.score >= 90
-                  ? "bg-yellow-400 text-white"
-                  : product.score >= 80
-                  ? "bg-blue-500 text-white"
-                  : product.score >= 70
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-400 text-white"
-              }`}
-            >
+            <span style={{
+              display: "inline-block",
+              fontSize: "11px",
+              fontWeight: "700",
+              padding: "4px 10px",
+              borderRadius: "4px",
+              background: product.score >= 80 ? "var(--navi-gold)" : "var(--navi-border)",
+              color: product.score >= 80 ? "#1a0e00" : "var(--navi-text-sub)",
+              letterSpacing: "0.03em",
+            }}>
               NAVIスコア {product.score}点
             </span>
           )}
 
           {/* 推薦理由 */}
           {product.reason && (
-            <p className="text-sm text-sky-600 font-medium">💬 {product.reason}</p>
+            <p style={{ fontSize: "13px", color: "var(--navi-text-sub)", background: "var(--navi-gold-light)", borderRadius: "var(--navi-radius-sm)", padding: "8px 12px" }}>
+              {product.reason}
+            </p>
           )}
 
           {/* 在庫状況 */}
-          <p className={`text-sm font-semibold ${product.availability ? "text-green-600" : "text-red-500"}`}>
+          <p style={{ fontSize: "13px", fontWeight: "600", color: product.availability ? "#16a34a" : "var(--navi-price)" }}>
             {product.availability ? "✓ 在庫あり" : "✗ 在庫なし"}
           </p>
 
           {/* 購入ボタン */}
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold text-gray-500 tracking-wide">購入サイトを選ぶ</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <p style={{ fontSize: "11px", fontWeight: "600", color: "var(--navi-text-hint)", letterSpacing: "0.06em", textTransform: "uppercase" }}>購入サイトを選ぶ</p>
             {product.purchaseLinks?.rakuten && (
               <a
                 href={product.purchaseLinks.rakuten}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-base font-bold text-white bg-[#BF0000] hover:bg-[#a00000] transition rounded-2xl py-4 shadow-sm"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "15px",
+                  background: "var(--navi-black)",
+                  color: "white",
+                  borderRadius: "var(--navi-radius-sm)",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                  letterSpacing: "0.02em",
+                }}
                 onClick={() => {
                   fetch("/api/track", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      actionType: "purchase_click",
-                      productId: product.id,
-                      productName: product.name,
-                      productCategory: product.category,
-                      productPrice: product.price,
-                      source: "rakuten",
-                    }),
+                    body: JSON.stringify({ actionType: "purchase_click", productId: product.id, productName: product.name, productCategory: product.category, productPrice: product.price, source: "rakuten" }),
                   }).catch(() => {});
                   fetch("/api/profile/update", { method: "POST" }).catch(() => {});
                 }}
               >
-                楽天市場で購入する →
+                <span style={{ fontSize: "11px", background: "var(--navi-rakuten)", padding: "2px 5px", borderRadius: "3px", fontWeight: "700" }}>楽天</span>
+                楽天市場で購入する
               </a>
             )}
             {product.purchaseLinks?.yahoo && (
@@ -513,43 +544,56 @@ export default function ProductDetailPage() {
                 href={product.purchaseLinks.yahoo}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-base font-bold text-white bg-[#FF0033] hover:bg-[#d40029] transition rounded-2xl py-4 shadow-sm"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "15px",
+                  background: "transparent",
+                  color: "var(--navi-text)",
+                  border: "0.5px solid var(--navi-border-strong)",
+                  borderRadius: "var(--navi-radius-sm)",
+                  fontSize: "15px",
+                  fontWeight: "400",
+                  textDecoration: "none",
+                }}
                 onClick={() => {
                   fetch("/api/track", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      actionType: "purchase_click",
-                      productId: product.id,
-                      productName: product.name,
-                      productCategory: product.category,
-                      productPrice: product.price,
-                      source: "yahoo",
-                    }),
+                    body: JSON.stringify({ actionType: "purchase_click", productId: product.id, productName: product.name, productCategory: product.category, productPrice: product.price, source: "yahoo" }),
                   }).catch(() => {});
                   fetch("/api/profile/update", { method: "POST" }).catch(() => {});
                 }}
               >
-                Yahoo!ショッピングで購入する →
+                <span style={{ fontSize: "11px", background: "var(--navi-yahoo)", color: "white", padding: "2px 5px", borderRadius: "3px", fontWeight: "700" }}>Y!</span>
+                Yahoo!ショッピングで購入する
               </a>
             )}
             {/* Amazonボタン */}
             <button
-              className="block w-full text-center text-base font-bold text-white bg-[#FF9900] hover:bg-[#e68a00] transition rounded-2xl py-4 shadow-sm"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                padding: "15px",
+                background: "transparent",
+                color: "var(--navi-text)",
+                border: "0.5px solid var(--navi-border-strong)",
+                borderRadius: "var(--navi-radius-sm)",
+                fontSize: "15px",
+                fontWeight: "400",
+                width: "100%",
+                cursor: "pointer",
+              }}
               onClick={() => {
                 fetch("/api/track", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    actionType: "amazon_click",
-                    productId: product.id,
-                    productName: product.name,
-                    productCategory: product.category,
-                    productPrice: product.price,
-                    source: "amazon",
-                  }),
+                  body: JSON.stringify({ actionType: "amazon_click", productId: product.id, productName: product.name, productCategory: product.category, productPrice: product.price, source: "amazon" }),
                 }).catch(() => {});
-                // ブラウザのポップアップブロック回避：同期的に URL を開く
                 const kw = product.name
                   .replace(/[【】「」『』★☆◆◇■□●○▲△▼▽♪♦]/g, " ")
                   .replace(/\d+%OFF/gi, " ")
@@ -558,16 +602,13 @@ export default function ProductDetailPage() {
                   .trim()
                   .slice(0, 40);
                 const tag = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_ID ?? "navi-shop-22";
-                window.open(
-                  `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${tag}`,
-                  "_blank",
-                  "noopener,noreferrer"
-                );
+                window.open(`https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${tag}`, "_blank", "noopener,noreferrer");
               }}
             >
-              🔍 Amazonでも探す →
+              <span style={{ fontSize: "11px", background: "var(--navi-amazon)", color: "white", padding: "2px 5px", borderRadius: "3px", fontWeight: "700" }}>A</span>
+              Amazonで探す
             </button>
-            <p className="text-xs text-gray-400 text-center -mt-1">
+            <p style={{ fontSize: "11px", color: "var(--navi-text-hint)", textAlign: "center" }}>
               ※Amazonの検索ページに移動します
             </p>
 
@@ -576,37 +617,52 @@ export default function ProductDetailPage() {
                 href={product.affiliateUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`block text-center text-base font-bold text-white ${badge.btnColor} transition rounded-2xl py-4 shadow-sm`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "15px",
+                  background: "var(--navi-black)",
+                  color: "white",
+                  borderRadius: "var(--navi-radius-sm)",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                  letterSpacing: "0.02em",
+                }}
                 onClick={() => {
                   fetch("/api/track", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      actionType: "purchase_click",
-                      productId: product.id,
-                      productName: product.name,
-                      productCategory: product.category,
-                      productPrice: product.price,
-                      source: product.source,
-                    }),
+                    body: JSON.stringify({ actionType: "purchase_click", productId: product.id, productName: product.name, productCategory: product.category, productPrice: product.price, source: product.source }),
                   }).catch(() => {});
                   fetch("/api/profile/update", { method: "POST" }).catch(() => {});
                 }}
               >
-                {badge.label}で購入する →
+                {badge.label}で購入する
               </a>
             )}
           </div>
 
-          {/* お気に入り・アラートボタン */}
+          {/* お気に入りボタン */}
           <div className="flex gap-3">
             <button
               onClick={handleFav}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-medium transition ${
-                fav
-                  ? "bg-red-50 border-red-200 text-red-500"
-                  : "bg-white border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-400"
-              }`}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                padding: "12px",
+                borderRadius: "var(--navi-radius-sm)",
+                border: `0.5px solid ${fav ? "rgba(239,68,68,0.3)" : "var(--navi-border-strong)"}`,
+                background: fav ? "rgba(239,68,68,0.05)" : "transparent",
+                fontSize: "13px",
+                fontWeight: "500",
+                color: fav ? "#ef4444" : "var(--navi-text-sub)",
+                cursor: "pointer",
+              }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -631,16 +687,24 @@ export default function ProductDetailPage() {
       {/* タブ */}
       <div className="mt-6 md:max-w-5xl md:mx-auto md:px-8">
         {/* タブバー */}
-        <div className="flex border-b border-gray-100">
+        <div style={{ display: "flex", borderBottom: "0.5px solid var(--navi-border)" }}>
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-3 text-sm font-medium transition border-b-2 ${
-                activeTab === tab.id
-                  ? "border-sky-500 text-sky-600"
-                  : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
+              style={{
+                flex: 1,
+                padding: "12px",
+                fontSize: "13px",
+                fontWeight: activeTab === tab.id ? "600" : "400",
+                color: activeTab === tab.id ? "var(--navi-black)" : "var(--navi-text-hint)",
+                background: "none",
+                border: "none",
+                borderBottom: `2px solid ${activeTab === tab.id ? "var(--navi-black)" : "transparent"}`,
+                cursor: "pointer",
+                transition: "all 0.15s",
+                letterSpacing: "0.02em",
+              }}
             >
               {tab.label}
             </button>

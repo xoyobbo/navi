@@ -4,13 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/chat",   label: "AI検索",   emoji: "🤖" },
-  { href: "/search", label: "商品検索", emoji: "🔍" },
-  { href: "/mypage", label: "マイページ", emoji: "👤" },
+  { href: "/chat",   label: "AI検索",    icon: "✦",  isMain: false },
+  { href: "/search", label: "商品検索",  icon: "⌕",  isMain: true  },
+  { href: "/mypage", label: "マイページ", icon: "⊙", isMain: false },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(href + "/");
+  }
 
   return (
     <nav
@@ -21,45 +25,61 @@ export default function BottomNav() {
         left: 0,
         right: 0,
         zIndex: 100,
-        background: "white",
-        borderTop: "1px solid var(--color-border)",
+        background: "rgba(247,246,243,0.92)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderTop: "0.5px solid var(--navi-border)",
+        display: "flex",
         paddingBottom: "env(safe-area-inset-bottom)",
-        boxShadow: "0 -2px 10px rgba(0,0,0,0.06)",
       }}
     >
-      {navItems.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(item.href + "/");
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            style={{
-              flex: 1,
+      {navItems.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: item.isMain ? "4px 0 8px" : "8px 0",
+            textDecoration: "none",
+            position: "relative",
+          }}
+        >
+          {item.isMain ? (
+            <div style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "50%",
+              background: "var(--navi-black)",
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: "8px 0",
-              minHeight: "56px",
-              color: active ? "var(--color-primary)" : "var(--color-text-sub)",
-              textDecoration: "none",
-              gap: "3px",
-              WebkitUserSelect: "none",
-            }}
-          >
-            <span style={{ fontSize: "22px", lineHeight: 1 }}>{item.emoji}</span>
-            <span
-              style={{
-                fontSize: "10px",
-                fontWeight: active ? 700 : 400,
-                letterSpacing: "0.01em",
-              }}
-            >
-              {item.label}
+              fontSize: "20px",
+              color: "white",
+              marginBottom: "2px",
+              marginTop: "-12px",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+            }}>
+              {item.icon}
+            </div>
+          ) : (
+            <span style={{ fontSize: "20px", marginBottom: "1px", color: isActive(item.href) ? "var(--navi-black)" : "var(--navi-text-hint)" }}>
+              {item.icon}
             </span>
-          </Link>
-        );
-      })}
+          )}
+          <span style={{
+            fontSize: "10px",
+            letterSpacing: "0.02em",
+            fontWeight: isActive(item.href) ? "600" : "400",
+            color: isActive(item.href) ? "var(--navi-black)" : "var(--navi-text-hint)",
+          }}>
+            {item.label}
+          </span>
+        </Link>
+      ))}
     </nav>
   );
 }
