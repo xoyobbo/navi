@@ -1,6 +1,7 @@
 import type { Product } from "@/types/product";
 import { searchRakuten } from "./rakuten";
 import { searchYahoo } from "./yahoo";
+import { filterByAllKeywords } from "@/lib/search-utils";
 
 interface MixSearchParams {
   keyword: string;
@@ -85,7 +86,8 @@ export async function searchMixed(
         return 0
       })
 
-    const allProducts = fulfilled.flatMap((r) => r.products)
+    const allProducts = fulfilled.flatMap((r) => r.products);
+
 
     console.log("searchMixed:", allProducts.length, "件", "preferredSources:", preferredSources)
 
@@ -94,7 +96,16 @@ export async function searchMixed(
       return []
     }
 
-    return deduplicateProducts(allProducts)
+    const deduped = deduplicateProducts(allProducts);
+
+    // 複数キーワードのANDフィルタ
+    const andFiltered = filterByAllKeywords(deduped, params.keyword);
+    if (andFiltered.length < 5 && deduped.length > 0) {
+      console.log(`[mix] AND補完: ${andFiltered.length}件 → 全${deduped.length}件`);
+      const others = deduped.filter((p) => !andFiltered.find((f) => f.id === p.id));
+      return [...andFiltered, ...others].slice(0, total);
+    }
+    return andFiltered.length > 0 ? andFiltered : deduped;
   } catch (e) {
     console.error("searchMixedエラー:", e)
     return []

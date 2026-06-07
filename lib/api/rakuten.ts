@@ -97,6 +97,7 @@ export async function searchRakuten(params: RakutenSearchParams): Promise<Produc
 
   try {
     const keyword = normalizeKeyword(params.keyword);
+    console.log("楽天検索キーワード:", keyword);
     const url = new URL(
       "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401"
     );

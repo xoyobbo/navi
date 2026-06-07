@@ -1,5 +1,6 @@
 import type { Product, SearchParams, SearchResult, SortOrder } from "@/types/product";
 import { scoreProducts, calcTrustLevel } from "@/lib/scoring";
+import { filterByAllKeywords } from "@/lib/search-utils";
 
 type ProductSource = "rakuten" | "yahoo" | "amazon";
 
@@ -194,7 +195,7 @@ export async function searchProducts(params: SearchParams): Promise<SearchResult
 
   // 画質優先：楽天が5件以上あればYahoo!を使わない
   const sources: ProductSource[] = [];
-  let allProducts: Product[];
+  let allProducts: Product[];  // ANDフィルタで再代入するためlet
   if (rakutenProducts.length >= 5) {
     allProducts = rakutenProducts;
     sources.push("rakuten");
@@ -203,6 +204,16 @@ export async function searchProducts(params: SearchParams): Promise<SearchResult
     allProducts = [...rakutenProducts, ...yahooProducts];
     if (rakutenProducts.length > 0) sources.push("rakuten");
     if (yahooProducts.length > 0) sources.push("yahoo");
+  }
+
+  // 複数キーワードのANDフィルタ（少なすぎる場合は補完）
+  const andFiltered = filterByAllKeywords(allProducts, query);
+  if (andFiltered.length < 5 && allProducts.length > 0) {
+    console.log(`AND検索結果が少ないため補完: ${andFiltered.length}件 → 全${allProducts.length}件で補完`);
+    const others = allProducts.filter((p) => !andFiltered.find((f) => f.id === p.id));
+    allProducts = [...andFiltered, ...others].slice(0, 60);
+  } else {
+    allProducts = andFiltered;
   }
 
   // 画像なし商品を除外してから価格フィルタ

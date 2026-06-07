@@ -894,7 +894,7 @@ function SearchContent() {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSearch();
                 if (e.key === "Enter" && e.nativeEvent.isComposing) e.preventDefault();
               }}
-              placeholder="商品を検索"
+              placeholder="商品を検索　例：椅子 折りたたみ"
               style={{
                 flex: 1,
                 background: "none",
@@ -990,6 +990,14 @@ function SearchContent() {
             </button>
           )}
         </div>
+        <p style={{
+          fontSize: "11px",
+          color: "var(--navi-text-hint)",
+          padding: "4px 4px 0",
+          marginTop: "2px",
+        }}>
+          スペースで区切ると複数条件で絞り込めます
+        </p>
       </form>
 
       {!searched && !loading && <TopBrowse key={browseKey} />}
