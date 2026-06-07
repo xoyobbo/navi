@@ -2,9 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { jaJP } from "@clerk/localizations";
-import { GoogleAnalytics } from "@next/third-parties/google";
 import { checkEnvVars } from "@/lib/env-check";
 import "./globals.css";
+
+const GA_ID = "G-4SGCVWFR3V";
 
 checkEnvVars();
 
@@ -84,10 +85,26 @@ export default function RootLayout({
       afterSignOutUrl="/"
     >
       <html lang="ja" className={`${geistSans.variable} antialiased`}>
+        <head>
+          {/* Google Analytics (GA4) — gtag.js を静的HTMLに直接出力し、
+              Googleのインストール検出が確実に通るようにする。
+              GA4の拡張計測がSPA画面遷移のページビューも自動追跡する。 */}
+          <script
+            async
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GA_ID}');`,
+            }}
+          />
+        </head>
         <body className="flex flex-col bg-white">
           {children}
         </body>
-        <GoogleAnalytics gaId="G-4SGCVWFR3V" />
       </html>
     </ClerkProvider>
   );
