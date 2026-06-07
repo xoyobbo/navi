@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchMixed } from "@/lib/api/mix";
+import { getPreferredSources } from "@/lib/preferences";
 import type { Product, SortOrder } from "@/types/product";
 
 function sortProducts(products: Product[], sort: SortOrder): Product[] {
@@ -31,22 +32,9 @@ export async function GET(req: NextRequest) {
   const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined;
   const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined;
 
-  // ユーザーのショッピングサイト設定を取得
-  let preferredSources = ["rakuten", "yahoo"];
-  try {
-    const prefsRes = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/user/preferences`,
-      { headers: { cookie: req.headers.get("cookie") ?? "" } }
-    );
-    if (prefsRes.ok) {
-      const prefsData = await prefsRes.json();
-      if (Array.isArray(prefsData.preferredSources) && prefsData.preferredSources.length > 0) {
-        preferredSources = prefsData.preferredSources;
-      }
-    }
-  } catch {
-    // 設定取得失敗はデフォルト値を使用
-  }
+  // ユーザーのショッピングサイト設定をサーバー側で直接取得（自己HTTP fetchは廃止）
+  const preferredSources = await getPreferredSources();
+  console.log("検索のpreferredSources:", preferredSources);
 
   const products = await searchMixed(
     { keyword: query, minPrice, maxPrice },

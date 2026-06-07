@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
+import { getPreferredSources } from "@/lib/preferences";
 
 function getSupabase() {
   return createClient(
@@ -43,34 +44,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ preferredSources: ["rakuten", "yahoo"] });
-    }
-
-    const supabase = getSupabase();
-
-    const { data: user } = await supabase
-      .from("users")
-      .select("id")
-      .eq("clerk_id", userId)
-      .single();
-
-    if (!user) {
-      return Response.json({ preferredSources: ["rakuten", "yahoo"] });
-    }
-
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("preferred_sources")
-      .eq("user_id", user.id)
-      .single();
-
-    return Response.json({
-      preferredSources: profile?.preferred_sources ?? ["rakuten", "yahoo"],
-    });
-  } catch {
-    return Response.json({ preferredSources: ["rakuten", "yahoo"] });
-  }
+  // 取得ロジックは lib/preferences.ts に集約（検索API等と共通）
+  const preferredSources = await getPreferredSources();
+  return Response.json({ preferredSources });
 }

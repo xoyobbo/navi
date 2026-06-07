@@ -9,6 +9,7 @@ import { getPriceRanges } from "@/lib/category-price-ranges";
 import { buildLearnedContext, updateUserProfile } from "@/lib/learning-engine";
 import { withCache, cacheKey } from "@/lib/cache";
 import { normalizeKeyword } from "@/lib/search-utils";
+import { getPreferredSources } from "@/lib/preferences";
 import type { Product } from "@/types/product";
 
 function getSupabase() {
@@ -228,22 +229,9 @@ ${JSON.stringify(searchConditions)}
     console.log("会話履歴件数:", conversationHistory?.length)
     console.log("isFinal:", isFinal)
 
-    // ユーザーのショッピングサイト設定を取得
-    let preferredSources = ["rakuten", "yahoo"];
-    try {
-      const prefsRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/api/user/preferences`,
-        { headers: { cookie: req.headers.get("cookie") ?? "" } }
-      );
-      if (prefsRes.ok) {
-        const prefsData = await prefsRes.json();
-        if (Array.isArray(prefsData.preferredSources) && prefsData.preferredSources.length > 0) {
-          preferredSources = prefsData.preferredSources;
-        }
-      }
-    } catch {
-      // 設定取得失敗はデフォルト値を使用
-    }
+    // ユーザーのショッピングサイト設定をサーバー側で直接取得（自己HTTP fetchは廃止）
+    const preferredSources = await getPreferredSources();
+    console.log("AI検索のpreferredSources:", preferredSources);
 
     // ① 会話履歴から条件・返答・次の質問を1回のClaudeで取得
     const conversationText = (conversationHistory || [])
