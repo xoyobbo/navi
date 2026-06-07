@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { jaJP } from "@clerk/localizations";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { checkEnvVars } from "@/lib/env-check";
 import "./globals.css";
 
@@ -86,6 +87,7 @@ export default function RootLayout({
         <body className="flex flex-col bg-white">
           {children}
         </body>
+        <GoogleAnalytics gaId="G-4SGCVWFR3V" />
       </html>
     </ClerkProvider>
   );
