@@ -18,6 +18,8 @@ export default function BottomNav() {
 
   return (
     <nav
+      // display は className の `flex md:hidden` で制御する（スマホ=flex / PC≥768px=非表示）。
+      // ここで display:flex をインライン指定すると md:hidden を上書きしてPCに漏れるため指定しない。
       className="flex md:hidden"
       style={{
         position: "fixed",
@@ -29,7 +31,6 @@ export default function BottomNav() {
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         borderTop: "0.5px solid var(--navi-border)",
-        display: "flex",
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
