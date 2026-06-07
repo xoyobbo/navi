@@ -7,6 +7,8 @@ import { createClient } from "@supabase/supabase-js";
 import { searchMixed } from "@/lib/api/mix";
 import { getPriceRanges } from "@/lib/category-price-ranges";
 import { buildLearnedContext, updateUserProfile } from "@/lib/learning-engine";
+import { withCache, cacheKey } from "@/lib/cache";
+import { normalizeKeyword } from "@/lib/search-utils";
 import type { Product } from "@/types/product";
 
 function getSupabase() {
@@ -65,6 +67,8 @@ export async function POST(req: NextRequest) {
   // ── !isFinal → Claude質問生成・JSON返却 ──────────────────
   if (!isFinal) {
     if (!message?.trim()) return Response.json({ message: "商品を教えてください", options: [] });
+    // 後段で同名のローカル変数 message を再宣言するため、キャッシュキー用に退避
+    const userMessage = message;
 
     // 最初の質問（予算）はカテゴリ別の価格帯を動的に注入する
     const isFirstQuestion = conversationHistory.length === 0;
@@ -112,6 +116,7 @@ ${JSON.stringify(searchConditions)}
 
     // 学習済みコンテキストをシステムプロンプトに追加
     let finalSystemPrompt = systemPrompt;
+    let hasLearnedContext = false;
     try {
       const { userId } = await auth();
       if (userId) {
@@ -119,7 +124,10 @@ ${JSON.stringify(searchConditions)}
         const { data: user } = await supabase.from("users").select("id").eq("clerk_id", userId).single();
         if (user) {
           const learnedContext = await buildLearnedContext(user.id);
-          if (learnedContext) finalSystemPrompt = systemPrompt + "\n\n" + learnedContext;
+          if (learnedContext) {
+            finalSystemPrompt = systemPrompt + "\n\n" + learnedContext;
+            hasLearnedContext = true;
+          }
         }
       }
     } catch {
@@ -147,15 +155,27 @@ ${JSON.stringify(searchConditions)}
     console.log("Claudeに渡すメッセージ数:", claudeMessages.length)
 
     try {
-      const res = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 700,
-        system: finalSystemPrompt,
-        messages: claudeMessages,
-      })
+      const generateQuestion = async () => {
+        const res = await anthropic.messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 700,
+          system: finalSystemPrompt,
+          messages: claudeMessages,
+        })
+        return res.content[0].type === "text" ? res.content[0].text : "{}"
+      }
 
-      const rawText = res.content[0].type === "text" ? res.content[0].text : "{}"
-      console.log("Claude呼び出し：1回 (!isFinal)")
+      // 学習コンテキストが付かない（＝ユーザー個別化されない）場合のみキャッシュ。
+      // 同じ会話ステップ・条件・履歴なら質問は同一になるためClaude呼び出しを省ける。
+      const rawText = hasLearnedContext
+        ? await generateQuestion()
+        : await withCache(
+            cacheKey("ai-question", { questionStep, originalKeyword, searchConditions, conversationHistory, message: userMessage }),
+            generateQuestion,
+            60 * 60 * 24,
+            (t) => t !== "{}" && t.length > 0
+          )
+      console.log("Claude呼び出し：1回 (!isFinal)", hasLearnedContext ? "" : "(cacheable)")
 
       // JSON パース（コードブロックも対応）
       const jsonStr =
@@ -232,19 +252,29 @@ ${JSON.stringify(searchConditions)}
       )
       .join("\n")
 
-    const combinedRes = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 400,
-      messages: [{
-        role: "user",
-        content:
-          `以下の会話から検索条件を抽出してJSONのみ返してください：\n\n` +
-          `会話：\n${conversationText}\n\n` +
-          `{"replyMessage":"返答メッセージ","conditions":{"keyword":"${originalKeyword || 'イヤホン'}","gender":null,"minPrice":null,"maxPrice":null,"features":[],"useCase":null}}\n\n` +
-          `keywordは必ず「${originalKeyword}」を使うこと。`,
-      }],
-    })
-    console.log("Claude呼び出し：1回 (isFinal/Haiku)")
+    // 会話内容は決定的（ユーザー個別化なし）なのでキャッシュ可能。
+    const extractConditions = async () => {
+      const combinedRes = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 400,
+        messages: [{
+          role: "user",
+          content:
+            `以下の会話から検索条件を抽出してJSONのみ返してください：\n\n` +
+            `会話：\n${conversationText}\n\n` +
+            `{"replyMessage":"返答メッセージ","conditions":{"keyword":"${originalKeyword || 'イヤホン'}","gender":null,"minPrice":null,"maxPrice":null,"features":[],"useCase":null}}\n\n` +
+            `keywordは必ず「${originalKeyword}」を使うこと。`,
+        }],
+      })
+      return combinedRes.content[0].type === "text" ? combinedRes.content[0].text : "{}"
+    }
+    const combinedText = await withCache(
+      cacheKey("ai-extract", { conversationText, originalKeyword }),
+      extractConditions,
+      60 * 60 * 24,
+      (t) => t !== "{}" && t.length > 0
+    )
+    console.log("Claude呼び出し：1回 (isFinal/Haiku, cacheable)")
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let extractedConditions: any = {
@@ -259,10 +289,7 @@ ${JSON.stringify(searchConditions)}
     let nextQuestion: FollowUpQuestion | null = null
 
     try {
-      const text =
-        combinedRes.content[0].type === "text"
-          ? combinedRes.content[0].text
-          : "{}"
+      const text = combinedText
       const match = text.match(/\{[\s\S]*\}/)
       if (match) {
         const parsed = JSON.parse(match[0])
@@ -297,17 +324,31 @@ ${JSON.stringify(searchConditions)}
     console.log("===================")
 
     // ③ 商品検索（4段階フォールバック）
+    // 同一の「キーワード＋価格帯」での重複検索はスキップしてAPI呼び出しを削減。
     const searchWithFallback = async (): Promise<Product[]> => {
+      const tried = new Set<string>()
+      const attempt = async (
+        kw: string,
+        minPrice?: number | null,
+        maxPrice?: number | null
+      ): Promise<Product[]> => {
+        const k = kw.trim()
+        if (!k) return []
+        const sig = `${normalizeKeyword(k)}|${minPrice ?? ""}|${maxPrice ?? ""}`
+        if (tried.has(sig)) {
+          console.log("重複検索スキップ:", sig)
+          return []
+        }
+        tried.add(sig)
+        return searchMixed(
+          { keyword: k, minPrice: minPrice ?? undefined, maxPrice: maxPrice ?? undefined },
+          30,
+          preferredSources
+        )
+      }
+
       // ① フル条件で検索
-      let products = await searchMixed(
-        {
-          keyword: searchKeyword,
-          minPrice: extractedConditions.minPrice,
-          maxPrice: extractedConditions.maxPrice,
-        },
-        30,
-        preferredSources
-      )
+      let products = await attempt(searchKeyword, extractedConditions.minPrice, extractedConditions.maxPrice)
       if (products.length > 0) {
         console.log("①成功:", products.length)
         return products
@@ -315,18 +356,18 @@ ${JSON.stringify(searchConditions)}
 
       // ② 価格条件を外す
       console.log("②価格条件なしで再検索")
-      products = await searchMixed({ keyword: searchKeyword }, 30, preferredSources)
+      products = await attempt(searchKeyword)
       if (products.length > 0) return products
 
       // ③ originalKeywordだけで検索
       console.log("③元キーワードのみ")
-      products = await searchMixed({ keyword: originalKeyword }, 30, preferredSources)
+      products = await attempt(originalKeyword)
       if (products.length > 0) return products
 
       // ④ キーワードの最初の単語のみ
       const firstWord = originalKeyword.split(/\s+/)[0]
       console.log("④最初の単語:", firstWord)
-      return await searchMixed({ keyword: firstWord }, 30, preferredSources)
+      return await attempt(firstWord)
     }
 
     const rawProducts = await searchWithFallback()

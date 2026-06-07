@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { SYSTEM_PROMPT, COMPARE_PROMPT } from "@/lib/prompts";
+import { withCache, cacheKey } from "@/lib/cache";
 import type { Product } from "@/types/product";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -28,19 +29,28 @@ export async function POST(req: NextRequest) {
     )
     .join("\n");
 
-  const res = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 512,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: COMPARE_PROMPT(productText) }],
-  });
+  // 同じ商品の組み合わせ（id＋価格）なら比較結果は同一なので24時間キャッシュ。
+  const result = await withCache(
+    cacheKey("compare", products.map((p) => `${p.id}:${p.price}`)),
+    async () => {
+      const res = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 512,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: COMPARE_PROMPT(productText) }],
+      });
 
-  const text = res.content[0].type === "text" ? res.content[0].text.trim() : "";
-  const cleaned = text.replace(/```(?:json)?\n?/g, "").replace(/```/g, "").trim();
+      const text = res.content[0].type === "text" ? res.content[0].text.trim() : "";
+      const cleaned = text.replace(/```(?:json)?\n?/g, "").replace(/```/g, "").trim();
 
-  try {
-    return NextResponse.json(JSON.parse(cleaned));
-  } catch {
-    return NextResponse.json({ summary: text, recommendation: "" });
-  }
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        return { summary: text, recommendation: "" };
+      }
+    },
+    60 * 60 * 24
+  );
+
+  return NextResponse.json(result);
 }

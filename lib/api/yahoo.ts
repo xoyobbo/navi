@@ -1,5 +1,6 @@
 import type { Product } from "@/types/product";
 import { calcTrustLevel, calcTotalScore } from "@/lib/scoring";
+import { withCache, cacheKey } from "@/lib/cache";
 
 interface YahooSearchParams {
   keyword: string;
@@ -9,6 +10,17 @@ interface YahooSearchParams {
 }
 
 export async function searchYahoo(params: YahooSearchParams): Promise<Product[]> {
+  // 楽天と同様にキーワード＋価格帯単位でRedisキャッシュ（TTL 1時間）。
+  const key = cacheKey("yahoo", {
+    keyword: params.keyword.trim(),
+    minPrice: params.minPrice ?? null,
+    maxPrice: params.maxPrice ?? null,
+    hits: params.hits ?? 20,
+  });
+  return withCache(key, () => fetchYahoo(params), 3600, (r) => r.length > 0);
+}
+
+async function fetchYahoo(params: YahooSearchParams): Promise<Product[]> {
   const clientId = process.env.YAHOO_CLIENT_ID;
   if (!clientId) return [];
 

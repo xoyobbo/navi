@@ -1,6 +1,7 @@
 import type { Product } from "@/types/product";
 import { normalizeKeyword } from "@/lib/search-utils";
 import { calcTrustLevel, calcTotalScore } from "@/lib/scoring";
+import { withCache, cacheKey } from "@/lib/cache";
 
 const validateProduct = (product: Partial<Product>): product is Product =>
   typeof product.id === "string" &&
@@ -87,6 +88,19 @@ function toProduct(raw: RakutenItem | { Item: RakutenItem }): Product {
 }
 
 export async function searchRakuten(params: RakutenSearchParams): Promise<Product[]> {
+  // キーワード＋価格帯＋ページ単位でRedisキャッシュ（TTL 1時間）。
+  // 0件・エラー結果はキャッシュしない（固定化を防ぐ）。
+  const key = cacheKey("rakuten", {
+    keyword: normalizeKeyword(params.keyword),
+    minPrice: params.minPrice ?? null,
+    maxPrice: params.maxPrice ?? null,
+    hits: params.hits ?? 30,
+    page: params.page ?? 1,
+  });
+  return withCache(key, () => fetchRakuten(params), 3600, (r) => r.length > 0);
+}
+
+async function fetchRakuten(params: RakutenSearchParams): Promise<Product[]> {
   const appId = process.env.RAKUTEN_APP_ID;
   const accessKey = process.env.RAKUTEN_ACCESS_KEY;
   const affiliateId = process.env.RAKUTEN_AFFILIATE_ID;
